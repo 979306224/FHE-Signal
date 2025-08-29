@@ -14,5 +14,9 @@ error ErrERC20Back();
 error ErrNotEnded();
 error ErrPayFail();
 error ErrERC20ToWinner();
+error ErrOnlyManager();
+error ErrInsufficientBalance();
+error ErrInvalidAmount();
+error ErrZeroAddress();
 
 

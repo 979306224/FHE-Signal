@@ -8,6 +8,8 @@ import { FHE, euint64, externalEuint64 } from "@fhevm/solidity/lib/FHE.sol";
 import { SepoliaConfig } from "@fhevm/solidity/config/ZamaConfig.sol";
 import { AssetBundle, ERC20Detail, ERC721Detail, BundleStatus } from "./common.sol";
 import { SaleEvents } from "./events.sol";
+import { IBundleManager } from "./IBundleManager.sol";
+import { IEscrow } from "./IEscrow.sol";
 import {
     ErrDeadline,
     ErrOnlySeller,
@@ -16,88 +18,50 @@ import {
     ErrSellerBid,
     ErrNoBid,
     ErrMinPrice,
-    ErrNativeDisabled,
-    ErrERC20Escrow,
-    ErrERC20Back,
     ErrNotEnded,
-    ErrPayFail,
-    ErrERC20ToWinner
+    ErrZeroAddress
 } from "./errors.sol";
 
+interface IEscrowExtended is IEscrow {
+    function deposit(address token, uint256 amount, externalEuint64 inputEuint64, bytes calldata inputProof) external;
+    function withdraw(externalEuint64 inputEuint64, bytes calldata inputProof) external;
+    function lockBid(uint256 bundleId, address bidder, externalEuint64 inputEuint64, bytes calldata inputProof) external;
+    function releaseBid(uint256 bundleId, address bidder) external;
+    function transferLockedBid(uint256 bundleId, address from, address to) external;
+    function getEncryptedBalance(address user) external view returns (euint64);
+    function getLockedBid(uint256 bundleId, address bidder) external view returns (euint64);
+    function hasBid(uint256 bundleId, address bidder) external view returns (bool);
+}
 
 contract FHEBundleSale is SepoliaConfig, IERC721Receiver, SaleEvents {
-
-    // bundleId => bundle detail
-    mapping(uint256 bundleId => AssetBundle bundle) private _bundles;
-    // bundleId => bidder => encrypted bid
-    mapping(uint256 bundleId => mapping(address bidder => euint64 encBid)) private _bids;
-    // bundleId => bidder => has bid
-    mapping(uint256 bundleId => mapping(address bidder => bool hasBid)) private _hasBid;
-
-    uint256 private _nextBundleId = 1;
-
-    // events are inherited from SaleEvents
-
-    function getBundle(uint256 bundleId) external view returns (AssetBundle memory) {
-        return _bundles[bundleId];
+    IBundleManager public bundleManager;
+    IEscrowExtended public escrow;
+    
+    mapping(uint256 bundleId => address winner) private _acceptedWinners;
+    mapping(uint256 bundleId => uint256 payAmount) private _acceptedAmounts;
+    
+    constructor(address _bundleManager, address _escrow) {
+        if (_bundleManager == address(0) || _escrow == address(0)) revert ErrZeroAddress();
+        bundleManager = IBundleManager(_bundleManager);
+        escrow = IEscrowExtended(_escrow);
     }
-
-    function getEncryptedBid(uint256 bundleId, address bidder) external view returns (euint64) {
-        return _bids[bundleId][bidder];
+    
+    function depositToEscrow(
+        address token,
+        uint256 amount,
+        externalEuint64 inputEuint64,
+        bytes calldata inputProof
+    ) external {
+        escrow.deposit(token, amount, inputEuint64, inputProof);
     }
-
-    // internal helpers
-    function _escrowERC20s(address from, ERC20Detail[] calldata erc20s) private {
-        for (uint256 i = 0; i < erc20s.length; i++) {
-            if (erc20s[i].amount > 0) {
-                bool okEscrow = IERC20(erc20s[i].token).transferFrom(from, address(this), erc20s[i].amount);
-                if (!okEscrow) revert ErrERC20Escrow();
-            }
-        }
+    
+    function withdrawFromEscrow(
+        externalEuint64 inputEuint64,
+        bytes calldata inputProof
+    ) external {
+        escrow.withdraw(inputEuint64, inputProof);
     }
-
-    function _returnEscrowAssets(AssetBundle storage b) private {
-        for (uint256 i = 0; i < b.erc20s.length; i++) {
-            if (b.erc20s[i].amount > 0) {
-                bool ok = IERC20(b.erc20s[i].token).transfer(b.seller, b.erc20s[i].amount);
-                if (!ok) revert ErrERC20Back();
-            }
-        }
-        for (uint256 j = 0; j < b.erc721s.length; j++) {
-            IERC721(b.erc721s[j].token).safeTransferFrom(address(this), b.seller, b.erc721s[j].tokenId);
-        }
-    }
-
-    function _validateAccept(AssetBundle storage b, address winner, uint256 payAmount) private view {
-        if (b.seller != msg.sender) revert ErrOnlySeller();
-        if (b.status != BundleStatus.Active) revert ErrStatus();
-        if (block.timestamp < b.deadline) revert ErrNotEnded();
-        if (winner == address(0)) revert ErrBundle();
-        if (!_hasBid[b.bundleId][winner]) revert ErrNoBid();
-        if (payAmount < uint256(b.payMinPrice)) revert ErrMinPrice();
-    }
-
-    function _transferPayment(AssetBundle storage b, address payer, uint256 amount) private {
-        if (b.payToken != address(0)) {
-            bool ok = IERC20(b.payToken).transferFrom(payer, b.seller, amount);
-            if (!ok) revert ErrPayFail();
-        } else {
-            revert ErrNativeDisabled();
-        }
-    }
-
-    function _transferAssetsTo(address to, AssetBundle storage b) private {
-        for (uint256 i = 0; i < b.erc20s.length; i++) {
-            if (b.erc20s[i].amount > 0) {
-                bool ok2 = IERC20(b.erc20s[i].token).transfer(to, b.erc20s[i].amount);
-                if (!ok2) revert ErrERC20ToWinner();
-            }
-        }
-        for (uint256 j = 0; j < b.erc721s.length; j++) {
-            IERC721(b.erc721s[j].token).safeTransferFrom(address(this), to, b.erc721s[j].tokenId);
-        }
-    }
-
+    
     function createBundle(
         ERC20Detail[] calldata erc20s,
         ERC721Detail[] calldata erc721s,
@@ -106,104 +70,93 @@ contract FHEBundleSale is SepoliaConfig, IERC721Receiver, SaleEvents {
         uint64 payMinPrice,
         uint256 deadline
     ) external returns (uint256 bundleId) {
-        if (deadline <= block.timestamp) revert ErrDeadline();
-
-        bundleId = _nextBundleId++;
-
-        AssetBundle storage b = _bundles[bundleId];
-        b.bundleId = bundleId;
-        b.seller = msg.sender;
-        b.payMinPrice = payMinPrice;
-        b.payToken = payToken;
-        b.payTokenDecimals = payTokenDecimals;
-        b.deadline = deadline;
-        b.status = BundleStatus.Active;
-
-        // copy and escrow ERC20s
-        for (uint256 i = 0; i < erc20s.length; i++) {
-            b.erc20s.push(erc20s[i]);
-        }
-        _escrowERC20s(msg.sender, erc20s);
-
-        // copy and escrow ERC721s
-        for (uint256 j = 0; j < erc721s.length; j++) {
-            b.erc721s.push(erc721s[j]);
-            IERC721(erc721s[j].token).safeTransferFrom(msg.sender, address(this), erc721s[j].tokenId);
-        }
-
-        emit BundleCreated(bundleId, msg.sender);
+        bundleId = bundleManager.createBundle(erc20s, erc721s, payToken, payTokenDecimals, payMinPrice, deadline);
     }
-
+    
     function cancelBundle(uint256 bundleId) external {
-        AssetBundle storage b = _bundles[bundleId];
+        AssetBundle memory b = bundleManager.getBundle(bundleId);
         if (b.seller != msg.sender) revert ErrOnlySeller();
         if (b.status != BundleStatus.Active) revert ErrStatus();
-
-        b.status = BundleStatus.Canceled;
-
-        // return escrowed assets
-        _returnEscrowAssets(b);
-
-        emit BundleCanceled(bundleId);
+        
+        bundleManager.cancelBundle(bundleId);
     }
-
+    
     function placeBid(
         uint256 bundleId,
         externalEuint64 inputEuint64,
         bytes calldata inputProof
     ) external {
-        AssetBundle storage b = _bundles[bundleId];
+        AssetBundle memory b = bundleManager.getBundle(bundleId);
         if (b.status != BundleStatus.Active) revert ErrStatus();
-        if (block.timestamp >= b.deadline) revert ErrDeadline();
+        if (block.timestamp >= b.deadline && b.deadline != 0) revert ErrDeadline();
         if (b.seller == address(0)) revert ErrBundle();
         if (msg.sender == b.seller) revert ErrSellerBid();
-
-        euint64 encBid = FHE.fromExternal(inputEuint64, inputProof);
-        _bids[bundleId][msg.sender] = encBid;
-        _hasBid[bundleId][msg.sender] = true;
-
-        // allow seller to decrypt this bidder's ciphertext via oracle
+        
+        escrow.lockBid(bundleId, msg.sender, inputEuint64, inputProof);
+        
+        euint64 encBid = escrow.getLockedBid(bundleId, msg.sender);
         FHE.allow(encBid, b.seller);
-
+        
         emit BidPlaced(bundleId, msg.sender);
     }
-
-    // seller or bidder can delegate decryption permission to a viewer
-    function allowBidDecryption(
-        uint256 bundleId,
-        address bidder,
-        address viewer
-    ) external {
-        AssetBundle storage b = _bundles[bundleId];
+    
+    function cancelBid(uint256 bundleId) external {
+        AssetBundle memory b = bundleManager.getBundle(bundleId);
         if (b.status != BundleStatus.Active) revert ErrStatus();
-        if (b.seller == address(0)) revert ErrBundle();
-        if (!(msg.sender == b.seller || msg.sender == bidder)) revert ErrOnlySeller();
-
-        if (!_hasBid[bundleId][bidder]) revert ErrNoBid();
-        euint64 encBid = _bids[bundleId][bidder];
-        FHE.allow(encBid, viewer);
+        if (!escrow.hasBid(bundleId, msg.sender)) revert ErrNoBid();
+        
+        escrow.releaseBid(bundleId, msg.sender);
     }
-
-    // solhint-disable-next-line code-complexity
+    
     function acceptBundle(
         uint256 bundleId,
         address winner,
         uint256 payAmount
     ) external {
-        AssetBundle storage b = _bundles[bundleId];
-        _validateAccept(b, winner, payAmount);
-
-        b.status = BundleStatus.Accepted;
-
-        // transfer payment from winner to seller
-        _transferPayment(b, winner, payAmount);
-
-        // transfer assets to winner
-        _transferAssetsTo(winner, b);
-
+        AssetBundle memory b = bundleManager.getBundle(bundleId);
+        if (b.seller != msg.sender) revert ErrOnlySeller();
+        if (b.status != BundleStatus.Active) revert ErrStatus();
+        if (b.deadline != 0 && block.timestamp < b.deadline) revert ErrNotEnded();
+        if (winner == address(0)) revert ErrBundle();
+        if (!escrow.hasBid(bundleId, winner)) revert ErrNoBid();
+        if (payAmount < uint256(b.payMinPrice)) revert ErrMinPrice();
+        
+        bundleManager.setAccepted(bundleId);
+        _acceptedWinners[bundleId] = winner;
+        _acceptedAmounts[bundleId] = payAmount;
+        
         emit BundleAccepted(bundleId, winner, payAmount);
     }
-
+    
+    function claimBundle(uint256 bundleId) external {
+        AssetBundle memory b = bundleManager.getBundle(bundleId);
+        if (b.status != BundleStatus.Accepted) revert ErrStatus();
+        if (_acceptedWinners[bundleId] != msg.sender) revert ErrBundle();
+        
+        bundleManager.releaseTo(bundleId, msg.sender);
+    }
+    
+    function claimPayment(uint256 bundleId) external {
+        AssetBundle memory b = bundleManager.getBundle(bundleId);
+        if (b.status != BundleStatus.Accepted) revert ErrStatus();
+        if (b.seller != msg.sender) revert ErrOnlySeller();
+        
+        address winner = _acceptedWinners[bundleId];
+        escrow.transferLockedBid(bundleId, winner, b.seller);
+    }
+    
+    function getBundle(uint256 bundleId) external view returns (AssetBundle memory) {
+        return bundleManager.getBundle(bundleId);
+    }
+    
+    function getEncryptedBalance(address user) external view returns (euint64) {
+        return escrow.getEncryptedBalance(user);
+    }
+    
+    function getLockedBid(uint256 bundleId, address bidder) external view returns (euint64) {
+        return escrow.getLockedBid(bundleId, bidder);
+    }
+    
     function onERC721Received(
         address,
         address,
