@@ -5,7 +5,7 @@ abstract contract SaleEvents {
     event BundleCreated(uint256 indexed bundleId, address indexed seller);
     event BundleCanceled(uint256 indexed bundleId);
     event BidPlaced(uint256 indexed bundleId, address indexed bidder);
-    event BundleAccepted(uint256 indexed bundleId, address indexed winner, uint256 payAmount);
+    event BundleAccepted(uint256 indexed bundleId, address indexed winner);
 }
 
 

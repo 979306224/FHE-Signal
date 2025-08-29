@@ -126,6 +126,14 @@ contract Escrow is IEscrow, IERC721Receiver, SepoliaConfig {
         _hasBid[bundleId][from] = false;
     }
 
+    function isBidAtLeast(uint256 bundleId, address bidder, uint64 min) external view returns (bool) {
+        euint64 encBid = _lockedBids[bundleId][bidder];
+        if (!_hasBid[bundleId][bidder]) return false;
+        // Compare by decrypting bid locally; in real deployments, consider zero-knowledge compare
+        uint64 amount = FHE.decrypt(encBid);
+        return amount >= min;
+    }
+
     function getEncryptedBalance(address user) external view returns (euint64) {
         return _balances[user];
     }
@@ -136,6 +144,10 @@ contract Escrow is IEscrow, IERC721Receiver, SepoliaConfig {
 
     function hasBid(uint256 bundleId, address bidder) external view returns (bool) {
         return _hasBid[bundleId][bidder];
+    }
+
+    function depositedTokenOf(address user) external view returns (address) {
+        return _depositedToken[user];
     }
 
     function escrowFrom(address from, ERC20Detail[] calldata erc20s, ERC721Detail[] calldata erc721s) external onlyManager {
