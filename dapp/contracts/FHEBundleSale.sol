@@ -59,10 +59,11 @@ contract FHEBundleSale is SepoliaConfig, IERC721Receiver, SaleEvents {
     }
     
     function withdrawFromEscrow(
+        address token,
         externalEuint64 inputEuint64,
         bytes calldata inputProof
     ) external {
-        escrow.withdraw(inputEuint64, inputProof);
+        escrow.withdraw(token, inputEuint64, inputProof);
     }
     
     function createBundle(
@@ -115,10 +116,8 @@ contract FHEBundleSale is SepoliaConfig, IERC721Receiver, SaleEvents {
         if (b.deadline != 0 && block.timestamp >= b.deadline) revert ErrDeadline();
         if (msg.sender == b.seller) revert ErrSellerBid();
 
-        // Ensure bidder's deposited token matches bundle pay token
-        if (escrow.depositedTokenOf(msg.sender) != b.payToken) revert ErrPayFail();
-
-        escrow.lockBid(bundleId, msg.sender, inputEuint64, inputProof);
+        // Lock bid using specified pay token
+        escrow.lockBid(bundleId, msg.sender, b.payToken, inputEuint64, inputProof);
 
         euint64 encBid = escrow.getLockedBid(bundleId, msg.sender);
         FHE.allow(encBid, b.seller);
