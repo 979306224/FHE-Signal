@@ -1,110 +1,121 @@
-# FHEVM Hardhat Template
+# ZAMA FHE Bundle Sale
 
-A Hardhat-based template for developing Fully Homomorphic Encryption (FHE) enabled Solidity smart contracts using the
-FHEVM protocol by Zama.
+基于FHEVM的加密Bundle销售智能合约，支持CIDv0格式的IPFS内容标识符。
 
-## Quick Start
+## 项目概述
 
-For detailed instructions see:
-[FHEVM Hardhat Quick Start Tutorial](https://docs.zama.ai/protocol/solidity-guides/getting-started/quick-start-tutorial)
+这个项目演示了如何在FHEVM环境中处理CIDv0格式的IPFS内容标识符，包括：
+- 将CIDv0转换为uint256格式
+- 在智能合约中存储加密的uint256值
+- 将存储的值转换回CIDv0格式
 
-### Prerequisites
+## 技术栈
 
-- **Node.js**: Version 20 or higher
-- **npm or yarn/pnpm**: Package manager
+- **Solidity**: ^0.8.24
+- **FHEVM**: 用于全同态加密
+- **Hardhat**: 开发框架
+- **TypeScript**: 测试和部署脚本
+- **CID**: IPFS内容标识符处理
 
-### Installation
-
-1. **Install dependencies**
-
-   ```bash
-   npm install
-   ```
-
-2. **Set up environment variables**
-
-   ```bash
-   npx hardhat vars set MNEMONIC
-
-   # Set your Infura API key for network access
-   npx hardhat vars set INFURA_API_KEY
-
-   # Optional: Set Etherscan API key for contract verification
-   npx hardhat vars set ETHERSCAN_API_KEY
-   ```
-
-3. **Compile and test**
-
-   ```bash
-   npm run compile
-   npm run test
-   ```
-
-4. **Deploy to local network**
-
-   ```bash
-   # Start a local FHEVM-ready node
-   npx hardhat node
-   # Deploy to local network
-   npx hardhat deploy --network localhost
-   ```
-
-5. **Deploy to Sepolia Testnet**
-
-   ```bash
-   # Deploy to Sepolia
-   npx hardhat deploy --network sepolia
-   # Verify contract on Etherscan
-   npx hardhat verify --network sepolia <CONTRACT_ADDRESS>
-   ```
-
-6. **Test on Sepolia Testnet**
-
-   ```bash
-   # Once deployed, you can run a simple test on Sepolia.
-   npx hardhat test --network sepolia
-   ```
-
-## 📁 Project Structure
+## 项目结构
 
 ```
-fhevm-hardhat-template/
-├── contracts/           # Smart contract source files
-│   └── FHECounter.sol   # Example FHE counter contract
-├── deploy/              # Deployment scripts
-├── tasks/               # Hardhat custom tasks
-├── test/                # Test files
-├── hardhat.config.ts    # Hardhat configuration
-└── package.json         # Dependencies and scripts
+dapp/
+├── contracts/
+│   ├── FHEBundleSale.sol    # 主要的Bundle销售合约（待实现）
+│   └── Test.sol             # 测试合约，演示CIDv0转换功能
+├── test/
+│   └── Test.ts              # 测试文件
+├── deploy/
+│   └── deploy.ts            # 部署脚本
+└── tasks/                   # Hardhat任务
 ```
 
-## 📜 Available Scripts
+## 功能特性
 
-| Script             | Description              |
-| ------------------ | ------------------------ |
-| `npm run compile`  | Compile all contracts    |
-| `npm run test`     | Run all tests            |
-| `npm run coverage` | Generate coverage report |
-| `npm run lint`     | Run linting checks       |
-| `npm run clean`    | Clean build artifacts    |
+### Test.sol
+- 存储和检索加密的uint256值
+- 支持FHEVM加密操作
+- 完整的访问控制
 
-## 📚 Documentation
+### Test.ts
+- CIDv0与uint256之间的双向转换
+- 加密存储和检索测试
+- 完整的测试覆盖
 
-- [FHEVM Documentation](https://docs.zama.ai/fhevm)
-- [FHEVM Hardhat Setup Guide](https://docs.zama.ai/protocol/solidity-guides/getting-started/setup)
-- [FHEVM Testing Guide](https://docs.zama.ai/protocol/solidity-guides/development-guide/hardhat/write_test)
-- [FHEVM Hardhat Plugin](https://docs.zama.ai/protocol/solidity-guides/development-guide/hardhat)
+## 安装和运行
 
-## 📄 License
+### 前置要求
+- Node.js >= 20
+- npm >= 7.0.0
 
-This project is licensed under the BSD-3-Clause-Clear License. See the [LICENSE](LICENSE) file for details.
+### 安装依赖
+```bash
+npm install
+```
 
-## 🆘 Support
+### 编译合约
+```bash
+npm run compile
+```
 
-- **GitHub Issues**: [Report bugs or request features](https://github.com/zama-ai/fhevm/issues)
-- **Documentation**: [FHEVM Docs](https://docs.zama.ai)
-- **Community**: [Zama Discord](https://discord.gg/zama)
+### 运行测试
+```bash
+npm test
+```
 
----
+### 在Sepolia测试网运行测试
+```bash
+npm run test:sepolia
+```
 
-**Built with ❤️ by the Zama team**
+## 核心功能
+
+### CIDv0转换
+
+项目实现了CIDv0与uint256之间的转换功能：
+
+1. **CIDv0 → uint256**: 解析CIDv0，提取哈希值，转换为BigInt
+2. **uint256 → CIDv0**: 将BigInt转换回CIDv0格式
+
+### 加密存储
+
+使用FHEVM实现：
+- 加密存储uint256值
+- 安全的访问控制
+- 支持解密和验证
+
+## 测试说明
+
+测试文件 `Test.ts` 包含一个完整的测试用例，演示：
+
+1. 解析CIDv0格式
+2. 转换为uint256并加密存储
+3. 从合约中检索并解密
+4. 转换回CIDv0格式并验证
+
+## 开发指南
+
+### 添加新功能
+1. 在 `contracts/` 目录下创建新的Solidity文件
+2. 在 `test/` 目录下创建对应的测试文件
+3. 更新部署脚本（如需要）
+
+### 代码规范
+- 使用TypeScript进行类型安全
+- 遵循Solidity最佳实践
+- 添加完整的JSDoc注释
+
+## 许可证
+
+BSD-3-Clause-Clear
+
+## 贡献
+
+欢迎提交Issue和Pull Request来改进这个项目。
+
+## 相关链接
+
+- [FHEVM文档](https://docs.fhevm.org/)
+- [Zama官网](https://zama.ai/)
+- [IPFS CID规范](https://github.com/multiformats/cid)
