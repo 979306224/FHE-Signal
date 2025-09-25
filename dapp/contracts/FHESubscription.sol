@@ -108,13 +108,29 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable {
     }
 
 
-    function getChannelSignals(uint256 channelId) external view returns (Signal[] memory) {
-        uint256[] memory signalIds = _channels[channelId].signalIds;
-        Signal[] memory signals = new Signal[](signalIds.length);
-        for (uint256 i = 0; i < signalIds.length; i++) {
-            signals[i] = _signals[signalIds[i]];
+    function getChannelSignals(
+        uint256 channelId,
+        uint256 offset,
+        uint256 limit
+    ) external view returns (Signal[] memory) {
+        Channel storage channel = _channels[channelId];
+        if (channel.channelId == 0) revert ChannelNotFound();
+
+        uint256 total = channel.signalIds.length;
+        if (offset >= total || limit == 0) {
+            return new Signal[](0);
         }
-        return signals;
+
+        uint256 available = total - offset;
+        uint256 size = available < limit ? available : limit;
+        Signal[] memory results = new Signal[](size);
+
+        for (uint256 i = 0; i < size; i++) {
+            uint256 idx = total - 1 - offset - i;
+            uint256 sigId = channel.signalIds[idx];
+            results[i] = _signals[sigId];
+        }
+        return results;
     }
 
 
