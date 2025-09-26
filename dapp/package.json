@@ -83,7 +83,7 @@
     "build:ts": "tsc --project tsconfig.json",
     "typechain": "cross-env TS_NODE_TRANSPILE_ONLY=true hardhat typechain",
     "deploy:local": "hardhat run scripts/deploy-simple.js --network hardhat",
-    "deploy:sepolia": "hardhat run scripts/deploy-simple.js --network sepolia",
+    "deploy:sepolia": "hardhat deploy --network sepolia",
     "setup-env": "node scripts/setup-env.js",
     "deploy-with-deploy": "hardhat deploy --network sepolia",
     "check-balance": "hardhat run scripts/check-balance.js --network hardhat",
