@@ -1,0 +1,10 @@
+{
+  "network": "sepolia",
+  "deployer": "0x5575fb7BA01569b3B7bcF18D10452c3e15935484",
+  "contracts": {
+    "NFTFactory": "0xcB2EC254d95c337a82B0F10a6512579BB586C828",
+    "FHESubscriptionManager": "0x4dAA0285a7e44Ef96BE6f0DAE2a3BF2305045443"
+  },
+  "blockNumber": 9284368,
+  "timestamp": "2025-09-26T13:49:46.639Z"
+}
