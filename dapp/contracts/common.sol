@@ -41,6 +41,9 @@ struct Channel{
     uint256 createdAt;
     // 最后一次推送时间
     uint256 lastPublishedAt;
+    
+    // 索引数组：该频道下的所有topic ID
+    uint256[] topicIds;
 }
 
 
@@ -63,6 +66,9 @@ struct Topic {
     euint64 average;             // 当前加权平均值（FHE加密）
     uint256 totalWeight;         // 明文权重总和
     uint256 submissionCount;     // 提交次数
+    
+    // 索引数组：该topic下的所有signal ID
+    uint256[] signalIds;
 }
 
 // Allowlist 条目结构体

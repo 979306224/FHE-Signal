@@ -172,6 +172,9 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         topic.average = zeroValue;
         topic.totalWeight = 0;
         topic.submissionCount = 0;
+        
+        // 将新topic ID添加到channel的索引数组中
+        channel.topicIds.push(newTopicId);
 
         emit TopicCreated(newTopicId, channelId, msg.sender, ipfs, endDate);
         return newTopicId;
@@ -378,13 +381,16 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
             submittedAt: block.timestamp
         });
 
-        // 标记提交 & 更新加权平均（内部已做 euint64 对齐）
-        _hasSubmitted[topicId][msg.sender] = true;
-        _updateAverage(topicId, value, allowlistEntry.weight);
-
-        // 事件
-        emit SignalSubmitted(topicId, newSignalId, msg.sender);
-        return newSignalId;
+         // 将新signal ID添加到topic的索引数组中
+         topic.signalIds.push(newSignalId);
+         
+         // 标记提交 & 更新加权平均（内部已做 euint64 对齐）
+         _hasSubmitted[topicId][msg.sender] = true;
+         _updateAverage(topicId, value, allowlistEntry.weight);
+ 
+         // 事件
+         emit SignalSubmitted(topicId, newSignalId, msg.sender);
+         return newSignalId;
     }
 
 
@@ -467,43 +473,50 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         return _hasAccessed[topicId][user];
     }
 
+    /**
+     * @dev 获取频道下的topic数量
+     * @param channelId 频道ID
+     * @return count topic数量
+     */
+    function getChannelTopicCount(uint256 channelId) external view returns (uint256) {
+        Channel storage channel = _channels[channelId];
+        if (channel.channelId == 0) revert ChannelNotFound();
+        return channel.topicIds.length;
+    }
 
     /**
-     * @dev 获取topic下的所有signals（注意：signals现在属于topics而不是channels）
+     * @dev 获取topic下的signal数量
      * @param topicId topic ID
-     * @return signals topic下的所有signals（按提交时间排序）
+     * @return count signal数量
+     */
+    function getTopicSignalCount(uint256 topicId) external view returns (uint256) {
+        Topic storage topic = _topics[topicId];
+        if (topic.topicId == 0) revert TopicNotFound();
+        return topic.signalIds.length;
+    }
+
+
+    /**
+     * @dev 获取topic下的所有signals（高效版本，使用索引数组）
+     * @param topicId topic ID
+     * @return signals topic下的所有signals
      */
     function getTopicSignals(uint256 topicId) external view returns (Signal[] memory) {
         Topic storage topic = _topics[topicId];
         if (topic.topicId == 0) revert TopicNotFound();
 
-        // 由于我们没有在Topic中存储signalIds数组，需要遍历所有signals
-        // 这种方法效率较低，实际项目中可能需要优化
-        uint256 count = 0;
-        uint256 totalSignals = _currentSignalId;
+        uint256[] storage signalIds = topic.signalIds;
+        Signal[] memory results = new Signal[](signalIds.length);
         
-        // 首先计算属于这个topic的signal数量
-        for (uint256 i = 1; i <= totalSignals; i++) {
-            if (_signals[i].topicId == topicId) {
-                count++;
-            }
-        }
-        
-        // 创建结果数组并填充
-        Signal[] memory results = new Signal[](count);
-        uint256 index = 0;
-        for (uint256 i = 1; i <= totalSignals; i++) {
-            if (_signals[i].topicId == topicId) {
-                results[index] = _signals[i];
-                index++;
-            }
+        for (uint256 i = 0; i < signalIds.length; i++) {
+            results[i] = _signals[signalIds[i]];
         }
         
         return results;
     }
 
     /**
-     * @dev 获取频道下的所有topics
+     * @dev 获取频道下的所有topics（高效版本，使用索引数组）
      * @param channelId 频道ID
      * @return topics 频道下的所有topics
      */
@@ -511,27 +524,94 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         Channel storage channel = _channels[channelId];
         if (channel.channelId == 0) revert ChannelNotFound();
 
-        // 计算属于这个频道的topic数量
-        uint256 count = 0;
-        uint256 totalTopics = _currentTopicId;
+        uint256[] storage topicIds = channel.topicIds;
+        Topic[] memory results = new Topic[](topicIds.length);
         
-        for (uint256 i = 1; i <= totalTopics; i++) {
-            if (_topics[i].channelId == channelId) {
-                count++;
-            }
-        }
-        
-        // 创建结果数组并填充
-        Topic[] memory results = new Topic[](count);
-        uint256 index = 0;
-        for (uint256 i = 1; i <= totalTopics; i++) {
-            if (_topics[i].channelId == channelId) {
-                results[index] = _topics[i];
-                index++;
-            }
+        for (uint256 i = 0; i < topicIds.length; i++) {
+            results[i] = _topics[topicIds[i]];
         }
         
         return results;
+    }
+
+    /**
+     * @dev 分页获取topic下的signals
+     * @param topicId topic ID
+     * @param offset 偏移量
+     * @param limit 限制数量
+     * @return signals 指定范围的signals
+     * @return total 总数量
+     */
+    function getTopicSignalsPaginated(
+        uint256 topicId,
+        uint256 offset,
+        uint256 limit
+    ) external view returns (Signal[] memory signals, uint256 total) {
+        Topic storage topic = _topics[topicId];
+        if (topic.topicId == 0) revert TopicNotFound();
+
+        uint256[] storage signalIds = topic.signalIds;
+        total = signalIds.length;
+
+        // 检查偏移量
+        if (offset >= total) {
+            return (new Signal[](0), total);
+        }
+
+        // 计算实际返回的数量
+        uint256 end = offset + limit;
+        if (end > total) {
+            end = total;
+        }
+        uint256 actualLength = end - offset;
+
+        // 创建结果数组
+        signals = new Signal[](actualLength);
+        for (uint256 i = 0; i < actualLength; i++) {
+            signals[i] = _signals[signalIds[offset + i]];
+        }
+
+        return (signals, total);
+    }
+
+    /**
+     * @dev 分页获取频道下的topics
+     * @param channelId 频道ID
+     * @param offset 偏移量
+     * @param limit 限制数量
+     * @return topics 指定范围的topics
+     * @return total 总数量
+     */
+    function getChannelTopicsPaginated(
+        uint256 channelId,
+        uint256 offset,
+        uint256 limit
+    ) external view returns (Topic[] memory topics, uint256 total) {
+        Channel storage channel = _channels[channelId];
+        if (channel.channelId == 0) revert ChannelNotFound();
+
+        uint256[] storage topicIds = channel.topicIds;
+        total = topicIds.length;
+
+        // 检查偏移量
+        if (offset >= total) {
+            return (new Topic[](0), total);
+        }
+
+        // 计算实际返回的数量
+        uint256 end = offset + limit;
+        if (end > total) {
+            end = total;
+        }
+        uint256 actualLength = end - offset;
+
+        // 创建结果数组
+        topics = new Topic[](actualLength);
+        for (uint256 i = 0; i < actualLength; i++) {
+            topics[i] = _topics[topicIds[offset + i]];
+        }
+
+        return (topics, total);
     }
 
     function subscribe(uint256 channelId, DurationTier tier)
