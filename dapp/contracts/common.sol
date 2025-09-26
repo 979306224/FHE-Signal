@@ -8,7 +8,7 @@ enum DurationTier {
     OneDay,                // 1天
     Month,                 // 30天
     Quarter,              // 90 季度
-    HalfYeah,             // 180
+    HalfYear,             // 180
     Year                 // 365天
 }
 

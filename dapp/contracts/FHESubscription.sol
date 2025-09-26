@@ -39,6 +39,7 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
     error ArrayTooLarge();
     error EmptyArray();
     error InvalidValueRange(); // 无效的值范围（min > max等）
+    error AlreadyAccessed(); // 已经解密过此topic
 
 
     // NFT工厂实例
@@ -66,6 +67,8 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
     mapping(uint256 channelId => address[]) private _channelAllowlistAddresses;
     // 检查用户是否已经提交过signal: topicId => (address => bool)
     mapping(uint256 topicId => mapping(address user => bool)) private _hasSubmitted;
+    // 记录用户是否已经解密过topic结果: topicId => (address => bool)
+    mapping(uint256 topicId => mapping(address user => bool)) private _hasAccessed;
 
     event ChannelCreated(uint256 indexed id, address indexed owner, string info);
     event TopicCreated(
@@ -86,6 +89,7 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         address indexed subscriber,
         uint256 expiresAt
     );
+    event TopicResultAccessed(uint256 indexed topicId, address indexed user, uint256 tokenId);
 
     // 已移除旧的订阅元数据结构，现在使用NFT合约管理订阅信息
 
@@ -329,36 +333,43 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         return (allowlist, total);
     }
     /**
-     * @dev 提交signal到指定topic
-     * @param topicId topic ID
-     * @param inputValue signal值（0-255，FHE加密）
-     * @param proof FHE证明
-     * @return signalId 新创建的signal ID
-     */
+    * @dev 提交signal到指定topic
+    * @param topicId topic ID
+    * @param inputValue signal值（0-255，对应 euint8 的外部密文）
+    * @param proof FHE证明
+    * @return signalId 新创建的signal ID
+    */
     function submitSignal(
         uint256 topicId,
         externalEuint8 inputValue,
         bytes calldata proof
     ) external returns (uint256) {
+        // 基础校验
         Topic storage topic = _topics[topicId];
         if (topic.topicId == 0) revert TopicNotFound();
         if (block.timestamp >= topic.endDate) revert TopicExpired();
-        
-        // 检查用户是否在channel的allowlist中
+
+        // allowlist 与重复提交校验
         AllowlistEntry storage allowlistEntry = _channelAllowlists[topic.channelId][msg.sender];
         if (!allowlistEntry.exists) revert NotInAllowlist();
-        
-        // 检查用户是否已经提交过
         if (_hasSubmitted[topicId][msg.sender]) revert AlreadySubmitted();
 
+        // 外部密文转 euint8（链下加密 -> 链上密文）
         euint8 value = FHE.fromExternal(inputValue, proof);
-        
-        value = FHE.select(FHE.lt(value, topic.minValue), FHE.asEuint8(topic.defaultValue), value);
-        value = FHE.select(FHE.gt(value, topic.maxValue), FHE.asEuint8(topic.defaultValue), value);
-        
-        // 创建signal
+
+        // 用 euint8 常量进行比较与选择（位宽对齐，避免库重载不匹配）
+        euint8 minE = FHE.asEuint8(topic.minValue);
+        euint8 maxE = FHE.asEuint8(topic.maxValue);
+        euint8 defE = FHE.asEuint8(topic.defaultValue);
+
+        // 若小于最小值 -> 使用默认值
+        value = FHE.select(FHE.lt(value, minE), defE, value);
+        // 若大于最大值 -> 使用默认值
+        value = FHE.select(FHE.gt(value, maxE), defE, value);
+
+        // 创建并保存 Signal
         uint256 newSignalId = ++_currentSignalId;
-        Signal memory signal = Signal({
+        _signals[newSignalId] = Signal({
             signalId: newSignalId,
             channelId: topic.channelId,
             topicId: topicId,
@@ -366,17 +377,16 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
             value: value,
             submittedAt: block.timestamp
         });
-        _signals[newSignalId] = signal;
-        
-        // 标记用户已提交
+
+        // 标记提交 & 更新加权平均（内部已做 euint64 对齐）
         _hasSubmitted[topicId][msg.sender] = true;
-        
-        // 更新加权平均值
         _updateAverage(topicId, value, allowlistEntry.weight);
-        
+
+        // 事件
         emit SignalSubmitted(topicId, newSignalId, msg.sender);
         return newSignalId;
     }
+
 
     /**
      * @dev 内部函数：更新topic的加权平均值
@@ -445,6 +455,16 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
      */
     function hasSubmitted(uint256 topicId, address user) external view returns (bool) {
         return _hasSubmitted[topicId][user];
+    }
+
+    /**
+     * @dev 检查用户是否已经解密访问过topic结果
+     * @param topicId topic ID
+     * @param user 用户地址
+     * @return 是否已访问
+     */
+    function hasAccessedTopic(uint256 topicId, address user) external view returns (bool) {
+        return _hasAccessed[topicId][user];
     }
 
 
@@ -617,7 +637,7 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         if (tier == DurationTier.OneDay) return 1 days;
         if (tier == DurationTier.Month) return 30 days;
         if (tier == DurationTier.Quarter) return 90 days;
-        if (tier == DurationTier.HalfYeah) return 180 days;
+        if (tier == DurationTier.HalfYear) return 180 days;
         // DurationTier.Year
         return 365 days;
     }
@@ -641,6 +661,9 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         if (topic.topicId == 0) revert TopicNotFound();
         if (topic.channelId != channelId) revert ChannelNotFound();
         
+        // 检查用户是否已经解密过此topic
+        if (_hasAccessed[topicId][msg.sender]) revert AlreadyAccessed();
+        
         // 验证用户有有效的订阅
         Channel storage channel = _channels[channelId];
         if (channel.channelId == 0) revert ChannelNotFound();
@@ -649,10 +672,29 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         if (nftContract.ownerOf(tokenId) != msg.sender) revert NotSubscriptionOwner();
         if (!nftContract.isSubscriptionValid(tokenId)) revert SubscriptionExpired();
 
+        // 记录用户已经访问过此topic
+        _hasAccessed[topicId][msg.sender] = true;
 
         // 开放访问权限 用户可以链下解密
         FHE.allow(topic.average, msg.sender);
+        
+        // 发出访问事件
+        emit TopicResultAccessed(topicId, msg.sender, tokenId);
+    }
 
+    /**
+     * @dev 重置用户的topic访问记录（仅频道所有者可调用）
+     * @param topicId topic ID
+     * @param user 用户地址
+     */
+    function resetTopicAccess(uint256 topicId, address user) external {
+        Topic storage topic = _topics[topicId];
+        if (topic.topicId == 0) revert TopicNotFound();
+        
+        Channel storage channel = _channels[topic.channelId];
+        if (channel.owner != msg.sender) revert NotChannelOwner();
+        
+        _hasAccessed[topicId][user] = false;
     }
 
 
