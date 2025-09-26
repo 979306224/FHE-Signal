@@ -53,16 +53,22 @@ struct Topic {
     address creator;       // topic创建者
     uint256 createdAt;     // 创建时间戳
     
+    // 值范围配置
+    uint8 minValue;        // 最小允许值
+    uint8 maxValue;        // 最大允许值
+    uint8 defaultValue;    // 默认值（当输入超出范围时使用）
+    
     // 加权平均值相关
     euint64 totalWeightedValue;  // 加权值总和（FHE加密）
-    euint64 average;             // 当前平均值（FHE加密）
+    euint64 average;             // 当前加权平均值（FHE加密）
+    uint256 totalWeight;         // 明文权重总和
     uint256 submissionCount;     // 提交次数
 }
 
 // Allowlist 条目结构体
 struct AllowlistEntry {
     address user;          // 用户地址
-    euint64 weight;        // 用户权重（FHE加密）
+    uint64 weight;         // 用户权重（明文）
     bool exists;           // 是否存在标记
 }
 
