@@ -5,43 +5,79 @@ pragma solidity ^0.8.24;
 // 导入FHE（全同态加密）相关库（用于加密Signal字段）
 import {
     FHE,
-    ebool, 
-    eaddress, 
     euint8,
-    externalEbool,
-    externalEaddress,
-    externalEuint8
+    euint64,
+    externalEuint8,
+    externalEuint64
 } from "@fhevm/solidity/lib/FHE.sol";
 import {SepoliaConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 // 导入通用类型定义
-import {TierPrice, Channel,Signal,DurationTier} from "./common.sol";
+import {TierPrice, Channel, Signal, DurationTier, Topic, AllowlistEntry} from "./common.sol";
+// 导入NFT工厂
+import {NFTFactory} from "./NFTFactory.sol";
+import {ChannelNFT} from "./ChannelNFT.sol";
+// 导入ReentrancyGuard
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 
 
-contract FHESubscriptionManager is SepoliaConfig, Ownable, ERC721, ReentrancyGuard {
+contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
 
     error ChannelNotFound();
     error NotChannelOwner();
+    error TopicNotFound();
+    error NotTopicCreator();
+    error TopicExpired();
+    error TopicNotExpired();
+    error NotInAllowlist();
+    error AlreadySubmitted();
+    error InvalidEndDate();
+    error NotSubscriptionOwner();
+    error SubscriptionExpired();
+    error ArrayLengthMismatch();
+    error ArrayTooLarge();
+    error EmptyArray();
 
 
-    constructor() Ownable(msg.sender) ERC721("ChannelSubscription", "CHSUB") 
-    {
-
+    // NFT工厂实例
+    NFTFactory public immutable NFT_FACTORY;
+    
+    constructor() Ownable(msg.sender) {
+        // 部署NFT工厂
+        NFT_FACTORY = new NFTFactory();
     }
 
     uint256 private _currentChannelId = 0;
+    uint256 private _currentTopicId = 0;
     uint256 private _currentSignalId = 0;
 
     // 频道存储
     mapping(uint256 channelId => Channel channel) private _channels;
+    // Topic存储
+    mapping(uint256 topicId => Topic topic) private _topics;
     // signalId -> Signal 映射，便于按id查询信号
     mapping(uint256 signalId => Signal signal) private _signals;
+    
+    // channel allowlist: channelId => (address => AllowlistEntry)
+    mapping(uint256 channelId => mapping(address user => AllowlistEntry)) private _channelAllowlists;
+    // 跟踪每个频道的allowlist地址列表: channelId => address[]
+    mapping(uint256 channelId => address[]) private _channelAllowlistAddresses;
+    // 检查用户是否已经提交过signal: topicId => (address => bool)
+    mapping(uint256 topicId => mapping(address user => bool)) private _hasSubmitted;
 
     event ChannelCreated(uint256 indexed id, address indexed owner, string info);
+    event TopicCreated(
+        uint256 indexed topicId, 
+        uint256 indexed channelId, 
+        address indexed creator, 
+        string ipfs, 
+        uint256 endDate
+    );
+    event AllowlistUpdated(uint256 indexed channelId, address indexed user, bool added);
+    event SignalSubmitted(uint256 indexed topicId, uint256 indexed signalId, address indexed submitter);
+    event AverageUpdated(uint256 indexed topicId, uint256 submissionCount);
     event SignalCreated(uint256 indexed channelId, uint256 indexed signalIndex);
     event Subscribed(
         uint256 indexed tokenId,
@@ -52,16 +88,7 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ERC721, ReentrancyGua
         uint256 expiresAt
     );
 
-    // 订阅 NFT 元数据
-    struct SubscriptionMeta {
-        uint256 channelId;
-        uint256 expiresAt;
-        DurationTier tier;
-    }
-
-    // tokenId -> 订阅信息
-    mapping(uint256 tokenId => SubscriptionMeta subscription) private _subscriptionByToken;
-    uint256 private _nextSubscriptionTokenId = 1;
+    // 已移除旧的订阅元数据结构，现在使用NFT合约管理订阅信息
 
     error TierNotFound();
     error IncorrectPayment(uint256 expected, uint256 actual);
@@ -76,12 +103,15 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ERC721, ReentrancyGua
         channel.owner = msg.sender;
         channel.createdAt = block.timestamp;
         channel.lastPublishedAt = 0;
-        channel.signalCount = 0;
 
         // 设置价格梯度
         for (uint256 i = 0; i < tiers.length; i++) {
             channel.tiers.push(tiers[i]);
         }
+
+        // 为频道创建NFT合约
+        address nftContract = NFT_FACTORY.createChannelNFT(newId, info);
+        channel.nftContract = nftContract;
 
         emit ChannelCreated(newId, msg.sender, info);
         return newId;
@@ -89,37 +119,288 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ERC721, ReentrancyGua
 
 
 
-    function createSignal(
+    /**
+     * @dev 创建新的topic
+     * @param channelId 频道ID
+     * @param ipfs IPFS哈希，描述topic内容
+     * @param endDate topic结束日期（时间戳）
+     * @return topicId 新创建的topic ID
+     */
+    function createTopic(
         uint256 channelId,
-        externalEaddress inputToken,
-        externalEbool inputDirection,
-        externalEuint8 inputLevel,
-        bytes calldata proof
+        string memory ipfs,
+        uint256 endDate
     ) external returns (uint256) {
         Channel storage channel = _channels[channelId];
         if (channel.channelId == 0) revert ChannelNotFound();
         if (channel.owner != msg.sender) revert NotChannelOwner();
+        if (endDate <= block.timestamp) revert InvalidEndDate();
 
-        eaddress token = FHE.fromExternal(inputToken, proof);
-        ebool direction = FHE.fromExternal(inputDirection, proof);
-        euint8 level = FHE.fromExternal(inputLevel, proof);
+        uint256 newTopicId = ++_currentTopicId;
+        
+        // 初始化FHE加密的零值
+        euint64 zeroValue = FHE.asEuint64(0);
+        
+        Topic storage topic = _topics[newTopicId];
+        topic.topicId = newTopicId;
+        topic.channelId = channelId;
+        topic.ipfs = ipfs;
+        topic.endDate = endDate;
+        topic.creator = msg.sender;
+        topic.createdAt = block.timestamp;
+        topic.totalWeightedValue = zeroValue;
+        topic.average = zeroValue;
+        topic.submissionCount = 0;
 
+        emit TopicCreated(newTopicId, channelId, msg.sender, ipfs, endDate);
+        return newTopicId;
+    }
+
+
+    /**
+     * @dev 批量添加地址到channel的allowlist
+     * @param channelId channel ID
+     * @param users 用户地址数组
+     * @param inputWeights 用户权重数组（FHE加密）
+     * @param proof FHE证明
+     */
+    function batchAddToAllowlist(
+        uint256 channelId,
+        address[] calldata users,
+        externalEuint64[] calldata inputWeights,
+        bytes calldata proof
+    ) external {
+        Channel storage channel = _channels[channelId];
+        if (channel.channelId == 0) revert ChannelNotFound();
+        if (channel.owner != msg.sender) revert NotChannelOwner();
+
+        // 安全检查
+        if (users.length == 0) revert EmptyArray();
+        if (users.length > 100) revert ArrayTooLarge(); // 限制批量操作大小以防止gas用尽
+        
+        // 检查数组长度一致性
+        if (users.length != inputWeights.length) {
+            revert ArrayLengthMismatch();
+        }
+
+        // 批量处理每个用户
+        for (uint256 i = 0; i < users.length; i++) {
+            euint64 weight = FHE.fromExternal(inputWeights[i], proof);
+            
+            // 只允许owner查看
+            FHE.allowThis(weight);
+            FHE.allow(weight, channel.owner);
+
+            // 如果用户不在allowlist中，添加到地址列表
+            if (!_channelAllowlists[channelId][users[i]].exists) {
+                _channelAllowlistAddresses[channelId].push(users[i]);
+            }
+
+            _channelAllowlists[channelId][users[i]] = AllowlistEntry({
+                user: users[i],
+                weight: weight,
+                exists: true
+            });
+
+            emit AllowlistUpdated(channelId, users[i], true);
+        }
+    }
+
+
+    /**
+     * @dev 批量从allowlist中移除地址
+     * @param channelId channel ID
+     * @param users 用户地址数组
+     */
+    function batchRemoveFromAllowlist(uint256 channelId, address[] calldata users) external {
+        Channel storage channel = _channels[channelId];
+        if (channel.channelId == 0) revert ChannelNotFound();
+        if (channel.owner != msg.sender) revert NotChannelOwner();
+
+        // 安全检查
+        if (users.length == 0) revert EmptyArray();
+        if (users.length > 100) revert ArrayTooLarge(); // 限制批量操作大小以防止gas用尽
+
+        // 批量移除用户
+        for (uint256 i = 0; i < users.length; i++) {
+            // 从allowlist中移除
+            delete _channelAllowlists[channelId][users[i]];
+            
+            // 从地址列表中移除
+            _removeFromAddressList(channelId, users[i]);
+            
+            emit AllowlistUpdated(channelId, users[i], false);
+        }
+    }
+    /**
+     * @dev 内部函数：从地址列表中移除指定地址
+     * @param channelId 频道ID
+     * @param user 要移除的用户地址
+     */
+    function _removeFromAddressList(uint256 channelId, address user) internal {
+        address[] storage addresses = _channelAllowlistAddresses[channelId];
+        for (uint256 i = 0; i < addresses.length; i++) {
+            if (addresses[i] == user) {
+                // 将最后一个元素移到当前位置，然后删除最后一个元素
+                addresses[i] = addresses[addresses.length - 1];
+                addresses.pop();
+                break;
+            }
+        }
+    }
+
+    /**
+     * @dev 获取指定频道的所有allowlist条目
+     * @param channelId 频道ID
+     * @return allowlist 所有allowlist条目的数组
+     */
+    function getAllowlist(uint256 channelId) external view returns (AllowlistEntry[] memory) {
+        Channel storage channel = _channels[channelId];
+        if (channel.channelId == 0) revert ChannelNotFound();
+        
+        // 只有频道所有者可以查看完整的allowlist
+        if (channel.owner != msg.sender) revert NotChannelOwner();
+        
+        address[] storage addresses = _channelAllowlistAddresses[channelId];
+        AllowlistEntry[] memory allowlist = new AllowlistEntry[](addresses.length);
+        
+        for (uint256 i = 0; i < addresses.length; i++) {
+            allowlist[i] = _channelAllowlists[channelId][addresses[i]];
+        }
+        
+        return allowlist;
+    }
+
+    /**
+     * @dev 获取指定频道的allowlist地址数量
+     * @param channelId 频道ID
+     * @return count allowlist中的地址数量
+     */
+    function getAllowlistCount(uint256 channelId) external view returns (uint256) {
+        Channel storage channel = _channels[channelId];
+        if (channel.channelId == 0) revert ChannelNotFound();
+        
+        return _channelAllowlistAddresses[channelId].length;
+    }
+
+    /**
+     * @dev 分页获取allowlist条目（节省gas，避免返回大量数据）
+     * @param channelId 频道ID
+     * @param offset 偏移量
+     * @param limit 限制数量
+     * @return allowlist 指定范围的allowlist条目
+     * @return total 总条目数
+     */
+    function getAllowlistPaginated(
+        uint256 channelId, 
+        uint256 offset, 
+        uint256 limit
+    ) external view returns (AllowlistEntry[] memory allowlist, uint256 total) {
+        Channel storage channel = _channels[channelId];
+        if (channel.channelId == 0) revert ChannelNotFound();
+        
+        // 只有频道所有者可以查看完整的allowlist
+        if (channel.owner != msg.sender) revert NotChannelOwner();
+        
+        address[] storage addresses = _channelAllowlistAddresses[channelId];
+        total = addresses.length;
+        
+        // 检查偏移量
+        if (offset >= total) {
+            return (new AllowlistEntry[](0), total);
+        }
+        
+        // 计算实际返回的数量
+        uint256 end = offset + limit;
+        if (end > total) {
+            end = total;
+        }
+        uint256 actualLength = end - offset;
+        
+        // 创建结果数组
+        allowlist = new AllowlistEntry[](actualLength);
+        for (uint256 i = 0; i < actualLength; i++) {
+            allowlist[i] = _channelAllowlists[channelId][addresses[offset + i]];
+        }
+        
+        return (allowlist, total);
+    }
+    /**
+     * @dev 提交signal到指定topic
+     * @param topicId topic ID
+     * @param inputValue signal值（0-255，FHE加密）
+     * @param proof FHE证明
+     * @return signalId 新创建的signal ID
+     */
+    function submitSignal(
+        uint256 topicId,
+        externalEuint8 inputValue,
+        bytes calldata proof
+    ) external returns (uint256) {
+        Topic storage topic = _topics[topicId];
+        if (topic.topicId == 0) revert TopicNotFound();
+        if (block.timestamp >= topic.endDate) revert TopicExpired();
+        
+        // 检查用户是否在channel的allowlist中
+        AllowlistEntry storage allowlistEntry = _channelAllowlists[topic.channelId][msg.sender];
+        if (!allowlistEntry.exists) revert NotInAllowlist();
+        
+        // 检查用户是否已经提交过
+        if (_hasSubmitted[topicId][msg.sender]) revert AlreadySubmitted();
+
+        euint8 value = FHE.fromExternal(inputValue, proof);
+        
+        // 创建signal
         uint256 newSignalId = ++_currentSignalId;
         Signal memory signal = Signal({
             signalId: newSignalId,
-            channelId: channelId,
-            token: token,
-            direction: direction,
-            level: level
+            channelId: topic.channelId,
+            topicId: topicId,
+            submitter: msg.sender,
+            value: value,
+            submittedAt: block.timestamp
         });
         _signals[newSignalId] = signal;
-        channel.signalIds.push(newSignalId);
-        channel.signalCount = channel.signalIds.length;
-        channel.lastPublishedAt = block.timestamp;
-
-
-        emit SignalCreated(channelId, newSignalId);
+        
+        // 标记用户已提交
+        _hasSubmitted[topicId][msg.sender] = true;
+        
+        // 更新加权平均值
+        _updateAverage(topicId, value, allowlistEntry.weight);
+        
+        emit SignalSubmitted(topicId, newSignalId, msg.sender);
         return newSignalId;
+    }
+
+    /**
+     * @dev 内部函数：更新topic的加权平均值
+     * @param topicId topic ID
+     * @param value 新提交的值（FHE加密）
+     * @param weight 提交者的权重（FHE加密）
+     */
+    function _updateAverage(uint256 topicId, euint8 value, euint64 weight) internal {
+        Topic storage topic = _topics[topicId];
+        
+        // 将uint8的value扩展为uint64进行计算
+        euint64 valueAs64 = FHE.asEuint64(value);
+        
+        // 计算加权值：weight * value
+        euint64 weightedValue = FHE.mul(weight, valueAs64);
+        
+        // 更新总加权值：totalWeightedValue = sum(weight * value)
+        topic.totalWeightedValue = FHE.add(topic.totalWeightedValue, weightedValue);
+
+        // 更新提交次数
+        topic.submissionCount++;
+        
+        // 计算新的平均值：使用明文人数进行除法运算
+        // 根据用户建议：直接用总和(权重*值)除以人数
+        // 由于FHE.div的除数只能是明文值，这里用人数(submissionCount)做除数
+        if (topic.submissionCount > 0) {
+            topic.average = FHE.div(topic.totalWeightedValue, uint64(topic.submissionCount));
+        }
+        
+        emit AverageUpdated(topicId, topic.submissionCount);
     }
 
 
@@ -131,29 +412,99 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ERC721, ReentrancyGua
         return _signals[signalId];
     }
 
+    /**
+     * @dev 获取topic信息
+     * @param topicId topic ID
+     * @return topic topic信息
+     */
+    function getTopic(uint256 topicId) external view returns (Topic memory) {
+        return _topics[topicId];
+    }
 
-    function getChannelSignals(
-        uint256 channelId,
-        uint256 offset,
-        uint256 limit
-    ) external view returns (Signal[] memory) {
+    /**
+     * @dev 检查用户是否在channel的allowlist中
+     * @param channelId channel ID
+     * @param user 用户地址
+     * @return 是否在allowlist中
+     */
+    function isInAllowlist(uint256 channelId, address user) external view returns (bool) {
+        return _channelAllowlists[channelId][user].exists;
+    }
+
+    /**
+     * @dev 检查用户是否已经提交过signal
+     * @param topicId topic ID
+     * @param user 用户地址
+     * @return 是否已提交
+     */
+    function hasSubmitted(uint256 topicId, address user) external view returns (bool) {
+        return _hasSubmitted[topicId][user];
+    }
+
+
+    /**
+     * @dev 获取topic下的所有signals（注意：signals现在属于topics而不是channels）
+     * @param topicId topic ID
+     * @return signals topic下的所有signals（按提交时间排序）
+     */
+    function getTopicSignals(uint256 topicId) external view returns (Signal[] memory) {
+        Topic storage topic = _topics[topicId];
+        if (topic.topicId == 0) revert TopicNotFound();
+
+        // 由于我们没有在Topic中存储signalIds数组，需要遍历所有signals
+        // 这种方法效率较低，实际项目中可能需要优化
+        uint256 count = 0;
+        uint256 totalSignals = _currentSignalId;
+        
+        // 首先计算属于这个topic的signal数量
+        for (uint256 i = 1; i <= totalSignals; i++) {
+            if (_signals[i].topicId == topicId) {
+                count++;
+            }
+        }
+        
+        // 创建结果数组并填充
+        Signal[] memory results = new Signal[](count);
+        uint256 index = 0;
+        for (uint256 i = 1; i <= totalSignals; i++) {
+            if (_signals[i].topicId == topicId) {
+                results[index] = _signals[i];
+                index++;
+            }
+        }
+        
+        return results;
+    }
+
+    /**
+     * @dev 获取频道下的所有topics
+     * @param channelId 频道ID
+     * @return topics 频道下的所有topics
+     */
+    function getChannelTopics(uint256 channelId) external view returns (Topic[] memory) {
         Channel storage channel = _channels[channelId];
         if (channel.channelId == 0) revert ChannelNotFound();
 
-        uint256 total = channel.signalIds.length;
-        if (offset >= total || limit == 0) {
-            return new Signal[](0);
+        // 计算属于这个频道的topic数量
+        uint256 count = 0;
+        uint256 totalTopics = _currentTopicId;
+        
+        for (uint256 i = 1; i <= totalTopics; i++) {
+            if (_topics[i].channelId == channelId) {
+                count++;
+            }
         }
-
-        uint256 available = total - offset;
-        uint256 size = available < limit ? available : limit;
-        Signal[] memory results = new Signal[](size);
-
-        for (uint256 i = 0; i < size; i++) {
-            uint256 idx = total - 1 - offset - i;
-            uint256 sigId = channel.signalIds[idx];
-            results[i] = _signals[sigId];
+        
+        // 创建结果数组并填充
+        Topic[] memory results = new Topic[](count);
+        uint256 index = 0;
+        for (uint256 i = 1; i <= totalTopics; i++) {
+            if (_topics[i].channelId == channelId) {
+                results[index] = _topics[i];
+                index++;
+            }
         }
+        
         return results;
     }
 
@@ -183,16 +534,14 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ERC721, ReentrancyGua
 
         // 计算过期时间
         uint256 durationSeconds = _durationForTier(tier);
-        uint256 expiresAt = block.timestamp + durationSeconds;
 
-        // mint 订阅 NFT
-        uint256 tokenId = _nextSubscriptionTokenId++;
-        _safeMint(msg.sender, tokenId);
-        _subscriptionByToken[tokenId] = SubscriptionMeta({
-            channelId: channelId,
-            expiresAt: expiresAt,
-            tier: tier
-        });
+        // 通过NFT工厂铸造订阅NFT
+        uint256 tokenId = NFT_FACTORY.mintSubscriptionNFT(
+            channelId,
+            msg.sender,
+            tier,
+            durationSeconds
+        );
 
         // 订阅人数 +1
         channel.tiers[foundIndex].subscribers += 1;
@@ -201,16 +550,57 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ERC721, ReentrancyGua
         (bool success, ) = payable(channel.owner).call{value: price}("");
         if (!success) revert TransferFailed();
 
+        uint256 expiresAt = block.timestamp + durationSeconds;
         emit Subscribed(tokenId, channelId, tier, price, msg.sender, expiresAt);
         return tokenId;
     }
 
-    function getSubscription(uint256 tokenId)
+    /**
+     * @dev 获取订阅信息（从对应的NFT合约中获取）
+     * @param channelId 频道ID
+     * @param tokenId NFT ID
+     */
+    function getSubscription(uint256 channelId, uint256 tokenId)
         external
         view
-        returns (SubscriptionMeta memory)
+        returns (ChannelNFT.SubscriptionNFT memory)
     {
-        return _subscriptionByToken[tokenId];
+        Channel storage channel = _channels[channelId];
+        if (channel.channelId == 0) revert ChannelNotFound();
+        
+        ChannelNFT nftContract = ChannelNFT(channel.nftContract);
+        return nftContract.getSubscription(tokenId);
+    }
+    
+    /**
+     * @dev 检查订阅是否有效
+     * @param channelId 频道ID
+     * @param tokenId NFT ID
+     */
+    function isSubscriptionValid(uint256 channelId, uint256 tokenId)
+        external
+        view
+        returns (bool)
+    {
+        Channel storage channel = _channels[channelId];
+        if (channel.channelId == 0) revert ChannelNotFound();
+        
+        ChannelNFT nftContract = ChannelNFT(channel.nftContract);
+        return nftContract.isSubscriptionValid(tokenId);
+    }
+    
+    /**
+     * @dev 获取频道的NFT合约地址
+     * @param channelId 频道ID
+     */
+    function getChannelNFTContract(uint256 channelId)
+        external
+        view
+        returns (address)
+    {
+        Channel storage channel = _channels[channelId];
+        if (channel.channelId == 0) revert ChannelNotFound();
+        return channel.nftContract;
     }
 
     function _durationForTier(DurationTier tier)
@@ -229,14 +619,36 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ERC721, ReentrancyGua
 
 
 
+    /**
+     * @dev 为订阅用户获取topic的加密平均值（需要客户端解密）
+     * @param channelId 频道ID  
+     * @param topicId topic ID
+     * @param tokenId 用户的订阅NFT ID
+     * @return encryptedAverage 加密的平均值
+     */
+    function accessTopicResult(
+        uint256 channelId,
+        uint256 topicId, 
+        uint256 tokenId
+    ) external  {
+        // 验证topic存在且属于指定频道
+        Topic storage topic = _topics[topicId];
+        if (topic.topicId == 0) revert TopicNotFound();
+        if (topic.channelId != channelId) revert ChannelNotFound();
+        
+        // 验证用户有有效的订阅
+        Channel storage channel = _channels[channelId];
+        if (channel.channelId == 0) revert ChannelNotFound();
+        
+        ChannelNFT nftContract = ChannelNFT(channel.nftContract);
+        if (nftContract.ownerOf(tokenId) != msg.sender) revert NotSubscriptionOwner();
+        if (!nftContract.isSubscriptionValid(tokenId)) revert SubscriptionExpired();
 
 
-    function accessSignal(uint256 signalId) external view returns (bool) {
-        Signal memory signal = _signals[signalId];
-        if (signal.channelId == 0) revert SignalNotFound();
-        return true;
+        // 开放访问权限 用户可以链下解密
+        FHE.allow(topic.average, msg.sender);
+
     }
-
 
 
 

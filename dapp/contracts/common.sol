@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-import {ebool,eaddress,euint8} from "@fhevm/solidity/lib/FHE.sol";
+import {euint8,euint64} from "@fhevm/solidity/lib/FHE.sol";
 
 
 // 订阅时长等级枚举
@@ -34,12 +34,8 @@ struct Channel{
     TierPrice[] tiers;
     uint256 tierCount;
 
-
-    // 仅存储该频道下的 Signal 主键，详情通过全局映射查询
-    uint256[] signalIds;
-
-    // 当前信号数量
-    uint256 signalCount;
+    // 对应的NFT合约地址
+    address nftContract;
 
     // 创建时间
     uint256 createdAt;
@@ -48,16 +44,34 @@ struct Channel{
 }
 
 
-struct Signal{
-
-    uint256 signalId;
-    
+// Topic 结构体
+struct Topic {
+    uint256 topicId;
     uint256 channelId;
+    string ipfs;           // IPFS哈希，表示topic想要表达的内容
+    uint256 endDate;       // topic结束日期（时间戳）
+    address creator;       // topic创建者
+    uint256 createdAt;     // 创建时间戳
+    
+    // 加权平均值相关
+    euint64 totalWeightedValue;  // 加权值总和（FHE加密）
+    euint64 average;             // 当前平均值（FHE加密）
+    uint256 submissionCount;     // 提交次数
+}
 
-    // 目标token的地址 加密后
-    eaddress token;
-    // 操作方向  true为做多  false为做空
-    ebool direction;
-    // 信号强度  0~100 越大标示这个信号越强  
-    euint8 level;
+// Allowlist 条目结构体
+struct AllowlistEntry {
+    address user;          // 用户地址
+    euint64 weight;        // 用户权重（FHE加密）
+    bool exists;           // 是否存在标记
+}
+
+struct Signal{
+    uint256 signalId;
+    uint256 channelId;
+    uint256 topicId;       // 归属的topic ID
+    
+    address submitter;     // 提交者地址
+    euint8 value;         // 信号值（0-255，FHE加密）
+    uint256 submittedAt;  // 提交时间戳
 }
