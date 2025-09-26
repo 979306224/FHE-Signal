@@ -106,11 +106,12 @@ describe("FHESubscriptionManager - 访问控制和权限管理", function () {
     );
     const anotherTopicId = 2;
     
-    // 尝试用频道1的NFT访问频道2的topic
+    // 尝试用频道1的tokenId去访问频道2的topic（应该因为topic和channel不匹配而失败）
+    // 这里我们传入正确的channelId，但是传入错误的topicId（属于不同频道）
     await expect(
       subscriptionManager.connect(signers.bob)
-        .accessTopicResult(anotherChannelId, anotherTopicId, tokenId)
-    ).to.be.revertedWithCustomError(subscriptionManager, "ChannelNotFound");
+        .accessTopicResult(channelId, anotherTopicId, tokenId)
+    ).to.be.revertedWithCustomError(subscriptionManager, "TopicChannelMismatch");
   });
 
   it("只有频道所有者能重置访问记录", async function () {

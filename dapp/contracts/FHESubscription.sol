@@ -40,6 +40,7 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
     error EmptyArray();
     error InvalidValueRange(); // 无效的值范围（min > max等）
     error AlreadyAccessed(); // 已经解密过此topic
+    error TopicChannelMismatch(); // topic与channel不匹配
 
 
     // NFT工厂实例
@@ -153,6 +154,8 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         
         // 初始化FHE加密的零值
         euint64 zeroValue = FHE.asEuint64(0);
+        // 为合约地址授予零值的访问权限
+        FHE.allow(zeroValue, address(this));
         
         Topic storage topic = _topics[newTopicId];
         topic.topicId = newTopicId;
@@ -359,6 +362,9 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
 
         // 外部密文转 euint8（链下加密 -> 链上密文）
         euint8 value = FHE.fromExternal(inputValue, proof);
+        
+        // 为合约地址授予value的访问权限
+        FHE.allow(value, address(this));
 
         // 用 euint8 常量进行比较与选择（位宽对齐，避免库重载不匹配）
         euint8 minE = FHE.asEuint8(topic.minValue);
@@ -406,11 +412,24 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         // 将uint8的value扩展为uint64进行计算
         euint64 valueAs64 = FHE.asEuint64(value);
         
+        // 为合约地址授予valueAs64的访问权限
+        FHE.allow(valueAs64, address(this));
+        
         // 计算加权值：weight * value（权重是明文，可以直接相乘）
         euint64 weightedValue = FHE.mul(valueAs64, weight);
         
+        // 为合约地址授予weightedValue的访问权限
+        FHE.allow(weightedValue, address(this));
+        
+        // 为合约地址授予totalWeightedValue的访问权限（如果不是初始化）
+        if (topic.submissionCount > 0) {
+            FHE.allow(topic.totalWeightedValue, address(this));
+        }
+        
         // 更新总加权值和总权重
         topic.totalWeightedValue = FHE.add(topic.totalWeightedValue, weightedValue);
+        // 为合约地址授予更新后的totalWeightedValue的访问权限
+        FHE.allow(topic.totalWeightedValue, address(this));
         topic.totalWeight += weight;
 
         // 更新提交次数
@@ -420,6 +439,8 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         // 这样结果就能保持在原始值的范围内
         if (topic.totalWeight > 0) {
             topic.average = FHE.div(topic.totalWeightedValue, uint64(topic.totalWeight));
+            // 为合约地址授予average的访问权限
+            FHE.allow(topic.average, address(this));
         }
         
         emit AverageUpdated(topicId, topic.submissionCount);
@@ -736,17 +757,19 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         uint256 topicId, 
         uint256 tokenId
     ) external  {
+        // 验证channel存在
+        Channel storage channel = _channels[channelId];
+        if (channel.channelId == 0) revert ChannelNotFound();
+        
         // 验证topic存在且属于指定频道
         Topic storage topic = _topics[topicId];
         if (topic.topicId == 0) revert TopicNotFound();
-        if (topic.channelId != channelId) revert ChannelNotFound();
+        if (topic.channelId != channelId) revert TopicChannelMismatch();
         
         // 检查用户是否已经解密过此topic
         if (_hasAccessed[topicId][msg.sender]) revert AlreadyAccessed();
         
         // 验证用户有有效的订阅
-        Channel storage channel = _channels[channelId];
-        if (channel.channelId == 0) revert ChannelNotFound();
         
         ChannelNFT nftContract = ChannelNFT(channel.nftContract);
         if (nftContract.ownerOf(tokenId) != msg.sender) revert NotSubscriptionOwner();

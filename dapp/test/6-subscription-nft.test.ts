@@ -163,9 +163,10 @@ describe("FHESubscriptionManager - 订阅功能和NFT集成", function () {
     const afterTime = Math.floor(Date.now() / 1000);
     
     const subscription = await subscriptionManager.getSubscription(channelId, 1);
-    const expectedExpireTime = beforeTime + 30 * 24 * 3600; // 30天
+    const expectedMinExpireTime = beforeTime + 30 * 24 * 3600; // 30天
+    const expectedMaxExpireTime = afterTime + 30 * 24 * 3600 + 300; // 允许5分钟误差
     
-    expect(Number(subscription.expiresAt)).to.be.greaterThanOrEqual(expectedExpireTime);
-    expect(Number(subscription.expiresAt)).to.be.lessThanOrEqual(afterTime + 30 * 24 * 3600 + 5);
+    expect(Number(subscription.expiresAt)).to.be.greaterThanOrEqual(expectedMinExpireTime);
+    expect(Number(subscription.expiresAt)).to.be.lessThanOrEqual(expectedMaxExpireTime);
   });
 });

@@ -132,12 +132,26 @@ describe("FHESubscriptionManager - Signal提交和FHE加密功能", function () 
   });
 
   it("应该拒绝向过期topic提交", async function () {
-    // 创建已过期的topic
-    const pastDate = Math.floor(Date.now() / 1000) - 3600; // 1小时前
+    // 首先测试无法创建过期的topic
+    const pastDate = Math.floor(Date.now() / 1000) - 100; // 100秒前（已过期）
+    await expect(
+      subscriptionManager.connect(signers.alice).createTopic(
+        channelId, "QmExpiredTopic", pastDate, 10, 90, 50
+      )
+    ).to.be.revertedWithCustomError(subscriptionManager, "InvalidEndDate");
+    
+    // 获取当前区块时间并创建一个很快就会过期的topic（60秒后过期）
+    const currentBlock = await ethers.provider.getBlock('latest');
+    const currentBlockTime = currentBlock!.timestamp;
+    const shortDate = currentBlockTime + 60; // 60秒后过期
     await subscriptionManager.connect(signers.alice).createTopic(
-      channelId, "QmExpiredTopic", pastDate, 10, 90, 50
+      channelId, "QmExpiredTopic", shortDate, 10, 90, 50
     );
     const expiredTopicId = 2;
+    
+    // 通过快进区块链时间来使topic过期
+    await ethers.provider.send("evm_increaseTime", [65]); // 快进65秒
+    await ethers.provider.send("evm_mine", []); // 挖一个新区块
     
     const signalValue = 75;
     const encryptedInput = await fhevm
