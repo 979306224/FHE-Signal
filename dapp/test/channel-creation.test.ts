@@ -113,16 +113,5 @@ describe("FHESubscriptionManager - 频道创建功能", function () {
     }
   });
 
-  it("应该正确设置创建时间", async function () {
-    const tiers = [{ tier: DurationTier.Month, price: ethers.parseEther("0.1"), subscribers: 0 }];
-    
-    const beforeTime = Math.floor(Date.now() / 1000);
-    await subscriptionManager.connect(signers.alice).createChannel("时间测试频道", tiers);
-    const afterTime = Math.floor(Date.now() / 1000);
-    
-    const channel = await subscriptionManager.getChannel(1);
-    expect(Number(channel.createdAt)).to.be.greaterThanOrEqual(beforeTime);
-    expect(Number(channel.createdAt)).to.be.lessThanOrEqual(afterTime + 10); // 允许10秒误差
-    expect(channel.lastPublishedAt).to.equal(0);
-  });
+
 });

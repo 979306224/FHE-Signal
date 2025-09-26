@@ -81,7 +81,15 @@
     "test": "hardhat test",
     "test:sepolia": "hardhat test --network sepolia",
     "build:ts": "tsc --project tsconfig.json",
-    "typechain": "cross-env TS_NODE_TRANSPILE_ONLY=true hardhat typechain"
+    "typechain": "cross-env TS_NODE_TRANSPILE_ONLY=true hardhat typechain",
+    "deploy:local": "hardhat run scripts/deploy-simple.js --network hardhat",
+    "deploy:sepolia": "hardhat run scripts/deploy-simple.js --network sepolia",
+    "setup-env": "node scripts/setup-env.js",
+    "deploy-with-deploy": "hardhat deploy --network sepolia",
+    "check-balance": "hardhat run scripts/check-balance.js --network hardhat",
+    "check-balance:sepolia": "hardhat run scripts/check-balance.js --network sepolia",
+    "verify:sepolia": "hardhat run scripts/verify-contracts.js --network sepolia",
+    "verify:zama": "hardhat run scripts/verify-contracts.js --network zama"
   },
   "overrides": {
     "ws@>=7.0.0 <7.5.10": ">=7.5.10",
