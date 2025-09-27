@@ -3,6 +3,7 @@ import { IconHome, IconInfoCircle, IconPhone } from '@douyinfe/semi-icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useMemo } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { FHEStatusIndicator } from '../FHE/FHEStatusIndicator'
 
 function Navigation() {
   const location = useLocation();
@@ -17,16 +18,10 @@ function Navigation() {
       to: '/'
     },
     {
-      itemKey: '/about',
-      text: '关于我们',
+      itemKey: '/channel',
+      text: 'Channel列表',
       icon: <IconInfoCircle />,
-      to: '/about'
-    },
-    {
-      itemKey: '/contact',
-      text: '联系我们',
-      icon: <IconPhone />,
-      to: '/contact'
+      to: '/channel'
     }
   ], []);
 
@@ -48,7 +43,12 @@ function Navigation() {
       header={{
         text: 'FHE-Signal'
       }}
-      footer={<ConnectButton />}
+      footer={
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <FHEStatusIndicator />
+          <ConnectButton />
+        </div>
+      }
     />
   );
 }

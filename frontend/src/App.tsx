@@ -10,6 +10,7 @@ import Home from './pages/Home';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import { wagmiConfig } from './config/wallet';
+import { FHEProvider } from './FHE/fheContext';
 
 // 页面缓存组件
 function CachedPage({ children, path }: { children: React.ReactNode; path: string }) {
@@ -49,9 +50,11 @@ function App() {
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider theme={darkTheme()}>
-          <Router>
-            <AppContent />
-          </Router>
+          <FHEProvider>
+            <Router>
+              <AppContent />
+            </Router>
+          </FHEProvider>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

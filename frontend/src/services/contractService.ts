@@ -1,0 +1,634 @@
+import { 
+  writeContract, 
+  readContract, 
+  waitForTransactionReceipt,
+  getPublicClient,
+  simulateContract
+} from '@wagmi/core';
+import { parseEther, formatEther, type Address, type Hash } from 'viem';
+import { wagmiConfig } from '../config/wallet';
+import type {
+  Channel,
+  Topic,
+  Signal,
+  AllowlistEntry,
+  TierPrice,
+  SubscriptionNFT,
+  TransactionResult,
+  PaginatedResult,
+  BatchAllowlistParams,
+  BatchRemoveParams,
+  ContractAddresses
+} from '../types/contracts';
+import { DurationTier } from '../types/contracts';
+
+// 合约地址配置（从部署文件读取）
+const CONTRACT_ADDRESSES: ContractAddresses = {
+  FHESubscriptionManager: '0x4dAA0285a7e44Ef96BE6f0DAE2a3BF2305045443',
+  NFTFactory: '0xcB2EC254d95c337a82B0F10a6512579BB586C828'
+};
+
+// 合约ABI - 这里只包含主要方法，实际使用时需要完整的ABI
+const FHE_SUBSCRIPTION_MANAGER_ABI = [
+  // 读取方法
+  'function getChannel(uint256 id) view returns (tuple(uint256 channelId, string info, address owner, tuple(uint8 tier, uint256 price, uint256 subscribers)[] tiers, uint256 tierCount, address nftContract, uint256 createdAt, uint256 lastPublishedAt, uint256[] topicIds))',
+  'function getTopic(uint256 topicId) view returns (tuple(uint256 topicId, uint256 channelId, string ipfs, uint256 endDate, address creator, uint256 createdAt, uint8 minValue, uint8 maxValue, uint8 defaultValue, uint256 totalWeight, uint256 submissionCount, uint256[] signalIds))',
+  'function getSignal(uint256 signalId) view returns (tuple(uint256 signalId, uint256 channelId, uint256 topicId, address submitter, uint256 submittedAt))',
+  'function getAllowlist(uint256 channelId) view returns (tuple(address user, uint64 weight, bool exists)[])',
+  'function getAllowlistPaginated(uint256 channelId, uint256 offset, uint256 limit) view returns (tuple(address user, uint64 weight, bool exists)[], uint256)',
+  'function getChannelTopics(uint256 channelId) view returns (tuple(uint256 topicId, uint256 channelId, string ipfs, uint256 endDate, address creator, uint256 createdAt, uint8 minValue, uint8 maxValue, uint8 defaultValue, uint256 totalWeight, uint256 submissionCount, uint256[] signalIds)[])',
+  'function getTopicSignals(uint256 topicId) view returns (tuple(uint256 signalId, uint256 channelId, uint256 topicId, address submitter, uint256 submittedAt)[])',
+  'function isInAllowlist(uint256 channelId, address user) view returns (bool)',
+  'function hasSubmitted(uint256 topicId, address user) view returns (bool)',
+  'function hasAccessedTopic(uint256 topicId, address user) view returns (bool)',
+  'function getChannelTopicCount(uint256 channelId) view returns (uint256)',
+  'function getTopicSignalCount(uint256 topicId) view returns (uint256)',
+  'function getAllowlistCount(uint256 channelId) view returns (uint256)',
+  'function getSubscription(uint256 channelId, uint256 tokenId) view returns (tuple(uint256 channelId, uint256 expiresAt, uint8 tier, address subscriber, uint256 mintedAt))',
+  'function isSubscriptionValid(uint256 channelId, uint256 tokenId) view returns (bool)',
+  'function getChannelNFTContract(uint256 channelId) view returns (address)',
+  
+  // 写入方法
+  'function createChannel(string info, tuple(uint8 tier, uint256 price, uint256 subscribers)[] tiers) returns (uint256)',
+  'function createTopic(uint256 channelId, string ipfs, uint256 endDate, uint8 minValue, uint8 maxValue, uint8 defaultValue) returns (uint256)',
+  'function batchAddToAllowlist(uint256 channelId, address[] users, uint64[] weights)',
+  'function batchRemoveFromAllowlist(uint256 channelId, address[] users)',
+  'function submitSignal(uint256 topicId, bytes inputValue, bytes proof) returns (uint256)',
+  'function subscribe(uint256 channelId, uint8 tier) payable returns (uint256)',
+  'function accessTopicResult(uint256 channelId, uint256 topicId, uint256 tokenId)',
+  'function resetTopicAccess(uint256 topicId, address user)',
+] as const;
+
+const CHANNEL_NFT_ABI = [
+  'function getSubscription(uint256 tokenId) view returns (tuple(uint256 channelId, uint256 expiresAt, uint8 tier, address subscriber, uint256 mintedAt))',
+  'function isSubscriptionValid(uint256 tokenId) view returns (bool)',
+  'function getTimeRemaining(uint256 tokenId) view returns (uint256)',
+  'function getUserValidSubscriptions(address user) view returns (uint256[])',
+  'function batchCheckExpired(uint256[] tokenIds) view returns (bool[])',
+  'function balanceOf(address owner) view returns (uint256)',
+  'function ownerOf(uint256 tokenId) view returns (address)',
+] as const;
+
+/**
+ * 合约服务类，提供与智能合约交互的所有方法
+ */
+export class ContractService {
+  
+  // ============ 读取方法 ============
+  
+  /**
+   * 获取频道信息
+   */
+  static async getChannel(channelId: bigint): Promise<Channel> {
+    try {
+      const result = await readContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'getChannel',
+        args: [channelId]
+      });
+      
+      return result as Channel;
+    } catch (error) {
+      console.error('获取频道信息失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取Topic信息
+   */
+  static async getTopic(topicId: bigint): Promise<Topic> {
+    try {
+      const result = await readContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'getTopic',
+        args: [topicId]
+      });
+      
+      return result as Topic;
+    } catch (error) {
+      console.error('获取Topic信息失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取Signal信息
+   */
+  static async getSignal(signalId: bigint): Promise<Signal> {
+    try {
+      const result = await readContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'getSignal',
+        args: [signalId]
+      });
+      
+      return result as Signal;
+    } catch (error) {
+      console.error('获取Signal信息失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取频道的Allowlist
+   */
+  static async getAllowlist(channelId: bigint): Promise<AllowlistEntry[]> {
+    try {
+      const result = await readContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'getAllowlist',
+        args: [channelId]
+      });
+      
+      return result as AllowlistEntry[];
+    } catch (error) {
+      console.error('获取Allowlist失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 分页获取Allowlist
+   */
+  static async getAllowlistPaginated(
+    channelId: bigint, 
+    offset: number, 
+    limit: number
+  ): Promise<PaginatedResult<AllowlistEntry>> {
+    try {
+      const result = await readContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'getAllowlistPaginated',
+        args: [channelId, BigInt(offset), BigInt(limit)]
+      });
+      
+      const [items, total] = result as [AllowlistEntry[], bigint];
+      return {
+        items,
+        total,
+        offset,
+        limit
+      };
+    } catch (error) {
+      console.error('分页获取Allowlist失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取频道下的所有Topics
+   */
+  static async getChannelTopics(channelId: bigint): Promise<Topic[]> {
+    try {
+      const result = await readContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'getChannelTopics',
+        args: [channelId]
+      });
+      
+      return result as Topic[];
+    } catch (error) {
+      console.error('获取频道Topics失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取Topic下的所有Signals
+   */
+  static async getTopicSignals(topicId: bigint): Promise<Signal[]> {
+    try {
+      const result = await readContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'getTopicSignals',
+        args: [topicId]
+      });
+      
+      return result as Signal[];
+    } catch (error) {
+      console.error('获取Topic Signals失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 检查用户是否在Allowlist中
+   */
+  static async isInAllowlist(channelId: bigint, userAddress: string): Promise<boolean> {
+    try {
+      const result = await readContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'isInAllowlist',
+        args: [channelId, userAddress as Address]
+      });
+      
+      return result as boolean;
+    } catch (error) {
+      console.error('检查Allowlist状态失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 检查用户是否已提交Signal
+   */
+  static async hasSubmitted(topicId: bigint, userAddress: string): Promise<boolean> {
+    try {
+      const result = await readContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'hasSubmitted',
+        args: [topicId, userAddress as Address]
+      });
+      
+      return result as boolean;
+    } catch (error) {
+      console.error('检查提交状态失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取订阅信息
+   */
+  static async getSubscription(channelId: bigint, tokenId: bigint): Promise<SubscriptionNFT> {
+    try {
+      const result = await readContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'getSubscription',
+        args: [channelId, tokenId]
+      });
+      
+      return result as SubscriptionNFT;
+    } catch (error) {
+      console.error('获取订阅信息失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 检查订阅是否有效
+   */
+  static async isSubscriptionValid(channelId: bigint, tokenId: bigint): Promise<boolean> {
+    try {
+      const result = await readContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'isSubscriptionValid',
+        args: [channelId, tokenId]
+      });
+      
+      return result as boolean;
+    } catch (error) {
+      console.error('检查订阅有效性失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取用户的有效订阅NFT
+   */
+  static async getUserValidSubscriptions(
+    nftContractAddress: string, 
+    userAddress: string
+  ): Promise<bigint[]> {
+    try {
+      const result = await readContract(wagmiConfig, {
+        address: nftContractAddress as Address,
+        abi: CHANNEL_NFT_ABI,
+        functionName: 'getUserValidSubscriptions',
+        args: [userAddress as Address]
+      });
+      
+      return result as bigint[];
+    } catch (error) {
+      console.error('获取用户有效订阅失败:', error);
+      throw error;
+    }
+  }
+
+  // ============ 写入方法 ============
+
+  /**
+   * 创建频道
+   */
+  static async createChannel(
+    info: string, 
+    tiers: TierPrice[]
+  ): Promise<TransactionResult> {
+    try {
+      // 首先模拟交易
+      const { request } = await simulateContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'createChannel',
+        args: [info, tiers]
+      });
+
+      // 执行交易
+      const hash = await writeContract(wagmiConfig, request);
+      
+      // 等待交易确认
+      const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
+      
+      return {
+        hash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed,
+        success: receipt.status === 'success'
+      };
+    } catch (error) {
+      console.error('创建频道失败:', error);
+      return {
+        hash: '',
+        success: false,
+        error: error instanceof Error ? error.message : '未知错误'
+      };
+    }
+  }
+
+  /**
+   * 创建Topic
+   */
+  static async createTopic(
+    channelId: bigint,
+    ipfs: string,
+    endDate: bigint,
+    minValue: number,
+    maxValue: number,
+    defaultValue: number
+  ): Promise<TransactionResult> {
+    try {
+      const { request } = await simulateContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'createTopic',
+        args: [channelId, ipfs, endDate, minValue, maxValue, defaultValue]
+      });
+
+      const hash = await writeContract(wagmiConfig, request);
+      const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
+      
+      return {
+        hash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed,
+        success: receipt.status === 'success'
+      };
+    } catch (error) {
+      console.error('创建Topic失败:', error);
+      return {
+        hash: '',
+        success: false,
+        error: error instanceof Error ? error.message : '未知错误'
+      };
+    }
+  }
+
+  /**
+   * 批量添加到Allowlist
+   */
+  static async batchAddToAllowlist(params: BatchAllowlistParams): Promise<TransactionResult> {
+    try {
+      const { request } = await simulateContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'batchAddToAllowlist',
+        args: [params.channelId, params.users as Address[], params.weights]
+      });
+
+      const hash = await writeContract(wagmiConfig, request);
+      const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
+      
+      return {
+        hash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed,
+        success: receipt.status === 'success'
+      };
+    } catch (error) {
+      console.error('批量添加到Allowlist失败:', error);
+      return {
+        hash: '',
+        success: false,
+        error: error instanceof Error ? error.message : '未知错误'
+      };
+    }
+  }
+
+  /**
+   * 批量从Allowlist移除
+   */
+  static async batchRemoveFromAllowlist(params: BatchRemoveParams): Promise<TransactionResult> {
+    try {
+      const { request } = await simulateContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'batchRemoveFromAllowlist',
+        args: [params.channelId, params.users as Address[]]
+      });
+
+      const hash = await writeContract(wagmiConfig, request);
+      const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
+      
+      return {
+        hash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed,
+        success: receipt.status === 'success'
+      };
+    } catch (error) {
+      console.error('批量从Allowlist移除失败:', error);
+      return {
+        hash: '',
+        success: false,
+        error: error instanceof Error ? error.message : '未知错误'
+      };
+    }
+  }
+
+  /**
+   * 订阅频道
+   */
+  static async subscribe(
+    channelId: bigint, 
+    tier: DurationTier, 
+    paymentAmount: string
+  ): Promise<TransactionResult> {
+    try {
+      const value = parseEther(paymentAmount);
+      
+      const { request } = await simulateContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'subscribe',
+        args: [channelId, tier],
+        value
+      });
+
+      const hash = await writeContract(wagmiConfig, request);
+      const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
+      
+      return {
+        hash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed,
+        success: receipt.status === 'success'
+      };
+    } catch (error) {
+      console.error('订阅失败:', error);
+      return {
+        hash: '',
+        success: false,
+        error: error instanceof Error ? error.message : '未知错误'
+      };
+    }
+  }
+
+  /**
+   * 提交Signal（需要FHE加密）
+   */
+  static async submitSignal(
+    topicId: bigint,
+    encryptedValue: string,
+    proof: string
+  ): Promise<TransactionResult> {
+    try {
+      const { request } = await simulateContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'submitSignal',
+        args: [topicId, encryptedValue as `0x${string}`, proof as `0x${string}`]
+      });
+
+      const hash = await writeContract(wagmiConfig, request);
+      const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
+      
+      return {
+        hash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed,
+        success: receipt.status === 'success'
+      };
+    } catch (error) {
+      console.error('提交Signal失败:', error);
+      return {
+        hash: '',
+        success: false,
+        error: error instanceof Error ? error.message : '未知错误'
+      };
+    }
+  }
+
+  /**
+   * 访问Topic结果
+   */
+  static async accessTopicResult(
+    channelId: bigint,
+    topicId: bigint,
+    tokenId: bigint
+  ): Promise<TransactionResult> {
+    try {
+      const { request } = await simulateContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'accessTopicResult',
+        args: [channelId, topicId, tokenId]
+      });
+
+      const hash = await writeContract(wagmiConfig, request);
+      const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
+      
+      return {
+        hash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed,
+        success: receipt.status === 'success'
+      };
+    } catch (error) {
+      console.error('访问Topic结果失败:', error);
+      return {
+        hash: '',
+        success: false,
+        error: error instanceof Error ? error.message : '未知错误'
+      };
+    }
+  }
+
+  // ============ 工具方法 ============
+
+  /**
+   * 将Wei转换为Ether字符串
+   */
+  static weiToEther(wei: bigint): string {
+    return formatEther(wei);
+  }
+
+  /**
+   * 将Ether字符串转换为Wei
+   */
+  static etherToWei(ether: string): bigint {
+    return parseEther(ether);
+  }
+
+  /**
+   * 获取合约地址
+   */
+  static getContractAddresses(): ContractAddresses {
+    return CONTRACT_ADDRESSES;
+  }
+
+  /**
+   * 格式化时间戳为可读日期
+   */
+  static formatTimestamp(timestamp: bigint): string {
+    return new Date(Number(timestamp) * 1000).toLocaleString('zh-CN');
+  }
+
+  /**
+   * 检查地址格式
+   */
+  static isValidAddress(address: string): boolean {
+    return /^0x[a-fA-F0-9]{40}$/.test(address);
+  }
+
+  /**
+   * 获取DurationTier的显示名称
+   */
+  static getDurationTierName(tier: DurationTier): string {
+    const names = {
+      [DurationTier.OneDay]: '1天',
+      [DurationTier.Month]: '1个月',
+      [DurationTier.Quarter]: '3个月',
+      [DurationTier.HalfYear]: '6个月',
+      [DurationTier.Year]: '1年'
+    } as const;
+    return names[tier as keyof typeof names] || '未知';
+  }
+
+  /**
+   * 获取DurationTier的秒数
+   */
+  static getDurationTierSeconds(tier: DurationTier): number {
+    const seconds = {
+      [DurationTier.OneDay]: 24 * 60 * 60,
+      [DurationTier.Month]: 30 * 24 * 60 * 60,
+      [DurationTier.Quarter]: 90 * 24 * 60 * 60,
+      [DurationTier.HalfYear]: 180 * 24 * 60 * 60,
+      [DurationTier.Year]: 365 * 24 * 60 * 60
+    } as const;
+    return seconds[tier as keyof typeof seconds] || 0;
+  }
+}
+
+export default ContractService;
