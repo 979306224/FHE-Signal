@@ -1,11 +1,11 @@
-import { 
-  writeContract, 
-  readContract, 
+import {
+  writeContract,
+  readContract,
   waitForTransactionReceipt,
   getPublicClient,
   simulateContract
 } from '@wagmi/core';
-import { parseEther, formatEther, type Address, type Hash } from 'viem';
+import { parseEther, formatEther, parseAbi, type Address, type Hash } from 'viem';
 import { wagmiConfig } from '../config/wallet';
 import type {
   Channel,
@@ -29,45 +29,45 @@ const CONTRACT_ADDRESSES: ContractAddresses = {
 };
 
 // 合约ABI - 这里只包含主要方法，实际使用时需要完整的ABI
-const FHE_SUBSCRIPTION_MANAGER_ABI = [
+const FHE_SUBSCRIPTION_MANAGER_ABI = parseAbi([
   // 读取方法
-  'function getChannel(uint256 id) view returns (tuple(uint256 channelId, string info, address owner, tuple(uint8 tier, uint256 price, uint256 subscribers)[] tiers, uint256 tierCount, address nftContract, uint256 createdAt, uint256 lastPublishedAt, uint256[] topicIds))',
-  'function getTopic(uint256 topicId) view returns (tuple(uint256 topicId, uint256 channelId, string ipfs, uint256 endDate, address creator, uint256 createdAt, uint8 minValue, uint8 maxValue, uint8 defaultValue, uint256 totalWeight, uint256 submissionCount, uint256[] signalIds))',
-  'function getSignal(uint256 signalId) view returns (tuple(uint256 signalId, uint256 channelId, uint256 topicId, address submitter, uint256 submittedAt))',
-  'function getAllowlist(uint256 channelId) view returns (tuple(address user, uint64 weight, bool exists)[])',
-  'function getAllowlistPaginated(uint256 channelId, uint256 offset, uint256 limit) view returns (tuple(address user, uint64 weight, bool exists)[], uint256)',
-  'function getChannelTopics(uint256 channelId) view returns (tuple(uint256 topicId, uint256 channelId, string ipfs, uint256 endDate, address creator, uint256 createdAt, uint8 minValue, uint8 maxValue, uint8 defaultValue, uint256 totalWeight, uint256 submissionCount, uint256[] signalIds)[])',
-  'function getTopicSignals(uint256 topicId) view returns (tuple(uint256 signalId, uint256 channelId, uint256 topicId, address submitter, uint256 submittedAt)[])',
+  'function getChannel(uint256 id) view returns ((uint256 channelId, string info, address owner, (uint8 tier, uint256 price, uint256 subscribers)[] tiers, uint256 tierCount, address nftContract, uint256 createdAt, uint256 lastPublishedAt, uint256[] topicIds) channel)',
+  'function getTopic(uint256 topicId) view returns ((uint256 topicId, uint256 channelId, string ipfs, uint256 endDate, address creator, uint256 createdAt, uint8 minValue, uint8 maxValue, uint8 defaultValue, uint256 totalWeight, uint256 submissionCount, uint256[] signalIds) topic)',
+  'function getSignal(uint256 signalId) view returns ((uint256 signalId, uint256 channelId, uint256 topicId, address submitter, uint256 submittedAt) signal)',
+  'function getAllowlist(uint256 channelId) view returns ((address user, uint64 weight, bool exists)[] allowlist)',
+  'function getAllowlistPaginated(uint256 channelId, uint256 offset, uint256 limit) view returns ((address user, uint64 weight, bool exists)[] allowlist, uint256 total)',
+  'function getChannelTopics(uint256 channelId) view returns ((uint256 topicId, uint256 channelId, string ipfs, uint256 endDate, address creator, uint256 createdAt, uint8 minValue, uint8 maxValue, uint8 defaultValue, uint256 totalWeight, uint256 submissionCount, uint256[] signalIds)[] topics)',
+  'function getTopicSignals(uint256 topicId) view returns ((uint256 signalId, uint256 channelId, uint256 topicId, address submitter, uint256 submittedAt)[] signals)',
   'function isInAllowlist(uint256 channelId, address user) view returns (bool)',
   'function hasSubmitted(uint256 topicId, address user) view returns (bool)',
   'function hasAccessedTopic(uint256 topicId, address user) view returns (bool)',
   'function getChannelTopicCount(uint256 channelId) view returns (uint256)',
   'function getTopicSignalCount(uint256 topicId) view returns (uint256)',
   'function getAllowlistCount(uint256 channelId) view returns (uint256)',
-  'function getSubscription(uint256 channelId, uint256 tokenId) view returns (tuple(uint256 channelId, uint256 expiresAt, uint8 tier, address subscriber, uint256 mintedAt))',
+  'function getSubscription(uint256 channelId, uint256 tokenId) view returns (uint256 channelId, uint256 expiresAt, uint8 tier, address subscriber, uint256 mintedAt)',
   'function isSubscriptionValid(uint256 channelId, uint256 tokenId) view returns (bool)',
   'function getChannelNFTContract(uint256 channelId) view returns (address)',
-  
+
   // 写入方法
-  'function createChannel(string info, tuple(uint8 tier, uint256 price, uint256 subscribers)[] tiers) returns (uint256)',
+  'function createChannel(string info, (uint8 tier, uint256 price, uint256 subscribers)[] tiers) returns (uint256)',
   'function createTopic(uint256 channelId, string ipfs, uint256 endDate, uint8 minValue, uint8 maxValue, uint8 defaultValue) returns (uint256)',
   'function batchAddToAllowlist(uint256 channelId, address[] users, uint64[] weights)',
   'function batchRemoveFromAllowlist(uint256 channelId, address[] users)',
   'function submitSignal(uint256 topicId, bytes inputValue, bytes proof) returns (uint256)',
   'function subscribe(uint256 channelId, uint8 tier) payable returns (uint256)',
   'function accessTopicResult(uint256 channelId, uint256 topicId, uint256 tokenId)',
-  'function resetTopicAccess(uint256 topicId, address user)',
-] as const;
+  'function resetTopicAccess(uint256 topicId, address user)'
+]);
 
-const CHANNEL_NFT_ABI = [
-  'function getSubscription(uint256 tokenId) view returns (tuple(uint256 channelId, uint256 expiresAt, uint8 tier, address subscriber, uint256 mintedAt))',
+const CHANNEL_NFT_ABI = parseAbi([
+  'function getSubscription(uint256 tokenId) view returns ((uint256 channelId, uint256 expiresAt, uint8 tier, address subscriber, uint256 mintedAt) subscription)',
   'function isSubscriptionValid(uint256 tokenId) view returns (bool)',
   'function getTimeRemaining(uint256 tokenId) view returns (uint256)',
   'function getUserValidSubscriptions(address user) view returns (uint256[])',
   'function batchCheckExpired(uint256[] tokenIds) view returns (bool[])',
   'function balanceOf(address owner) view returns (uint256)',
-  'function ownerOf(uint256 tokenId) view returns (address)',
-] as const;
+  'function ownerOf(uint256 tokenId) view returns (address)'
+]);
 
 /**
  * 合约服务类，提供与智能合约交互的所有方法
