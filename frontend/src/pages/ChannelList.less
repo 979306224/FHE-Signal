@@ -1,9 +1,80 @@
-.btnGroup{
-    margin-bottom: 20px;
+.channel-list-container {
+  padding: 24px;
+  min-height: 100vh;
+  background-color: var(--semi-color-bg-0);
+
+  .channel-list-header {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--semi-color-border);
+
+    .semi-typography {
+      color: var(--semi-color-text-0);
+      font-weight: 600;
+    }
+  }
+
+  .channel-list-content {
+    .channel-list-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+    }
+
+    .channel-list-error,
+    .channel-list-empty {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 300px;
+    }
+
+    // 频道卡片网格布局
+    .semi-row {
+      .semi-col {
+        margin-bottom: 16px;
+      }
+    }
+  }
 }
 
-.channel-list{
-    display: flex;
+// 响应式布局
+@media (max-width: 1200px) {
+  .channel-list-container {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .channel-list-container {
+    padding: 12px;
+
+    .channel-list-header {
+      margin-bottom: 16px;
+      
+      .semi-space {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 12px !important;
+      }
+    }
+
+    .channel-list-content {
+      .semi-row {
+        .semi-col {
+          margin-bottom: 12px;
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .channel-list-container {
+    padding: 8px;
+  }
 }
 
 

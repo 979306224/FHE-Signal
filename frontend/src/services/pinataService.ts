@@ -40,6 +40,29 @@ function generateMetadataFileName(): string {
 }
 
 export default class PinataService {
+  /**
+   * 从 IPFS 获取 JSON 数据
+   */
+  static async fetchJson<T = any>(ipfsUri: string): Promise<T> {
+    try {
+      // 将 ipfs:// URI 转换为网关 URL
+      const cid = ipfsUri.replace('ipfs://', '');
+      const gatewayUrl = buildGatewayUrl(cid);
+      
+      const response = await fetch(gatewayUrl);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data as T;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`从 IPFS 获取数据失败: ${message}`);
+    }
+  }
+
   static async uploadJson(data: Record<string, unknown>): Promise<UploadResult> {
     const groupId = getPublicGroupId();
     

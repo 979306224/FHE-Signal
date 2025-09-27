@@ -28,7 +28,6 @@ function AppContent() {
   // 使用useMemo缓存页面组件，避免重复创建
   const cachedPages = useMemo(() => ({
     home: <Home />,
-    channel: <Channel />,
     channelList: <ChannelList />,
     // about: <About />,
     // contact: <Contact />
@@ -38,7 +37,6 @@ function AppContent() {
     <div>
       <Navigation />
       <CachedPage path="/">{cachedPages.home}</CachedPage>
-      <CachedPage path="/channel">{cachedPages.channel}</CachedPage>
       <CachedPage path="/channelList">{cachedPages.channelList}</CachedPage>
       {/* <CachedPage path="/about">{cachedPages.about}</CachedPage>
       <CachedPage path="/contact">{cachedPages.contact}</CachedPage> */}

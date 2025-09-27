@@ -1,0 +1,71 @@
+.channel-card {
+  .semi-card {
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    }
+  }
+
+  .channel-avatar {
+    .semi-avatar {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+  }
+
+  .channel-title {
+    color: var(--semi-color-text-0);
+    font-weight: 600;
+  }
+
+  .channel-description {
+    color: var(--semi-color-text-2);
+    line-height: 1.5;
+  }
+
+  .channel-stats {
+    .semi-tag {
+      &.subscribers {
+        background-color: rgba(var(--semi-blue-5), 0.1);
+        color: var(--semi-color-primary);
+      }
+
+      &.topics {
+        background-color: rgba(var(--semi-green-5), 0.1);
+        color: var(--semi-color-success);
+      }
+
+      &.price {
+        background-color: rgba(var(--semi-orange-5), 0.1);
+        color: var(--semi-color-warning);
+      }
+    }
+  }
+
+  .channel-footer {
+    border-top: 1px solid var(--semi-color-border);
+    padding-top: 8px;
+    margin-top: 12px;
+
+    .channel-date {
+      color: var(--semi-color-text-3);
+      font-size: 12px;
+    }
+
+    .channel-actions {
+      .semi-button {
+        &:hover {
+          transform: scale(1.05);
+        }
+      }
+    }
+  }
+}
+
+// 响应式布局
+@media (max-width: 768px) {
+  .channel-card {
+    .semi-card {
+      margin-bottom: 12px;
+    }
+  }
+}

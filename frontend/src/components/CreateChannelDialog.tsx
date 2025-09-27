@@ -17,7 +17,11 @@ type CreateChannelFormValues = {
     tiers: TierPrice[];
 };
 
-export default function CreateChannelDialog() {
+interface CreateChannelDialogProps {
+    onSuccess?: () => void;
+}
+
+export default function CreateChannelDialog({ onSuccess }: CreateChannelDialogProps) {
 
     const [visible, setVisible] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -110,13 +114,13 @@ export default function CreateChannelDialog() {
         if (!formApi) {
             return;
         }
+        try {
         setSubmitting(true);
         const values = await formApi.validate();
         const { logoFile, ...rest } = values;
         const submitPayload = {
             ...rest,
-            logo: values.logo,
-            tiers: tiers
+            logo: values.logo
         };
         console.log(submitPayload, 'submitPayload');
         
@@ -127,7 +131,7 @@ export default function CreateChannelDialog() {
             return;
         }
         
-        try {
+
             // 提交这个json到ipfs
             const ipfsResult = await PinataService.uploadJson(submitPayload);
             console.log('IPFS上传结果:', ipfsResult);
@@ -153,6 +157,9 @@ export default function CreateChannelDialog() {
                 setVisible(false);
                 setTiers([]);
                 formApiRef.current?.reset();
+                
+                // 调用成功回调
+                onSuccess?.();
             } else {
                 Toast.error(`创建频道失败: ${contractResult.error || '未知错误'}`);
             }
@@ -234,7 +241,7 @@ export default function CreateChannelDialog() {
                 <div className="infoText" >推荐使用96x96的图片</div>
 
                 <div style={{ marginBottom: 24 }}>
-                    <Form.Label text="付费计划" />
+                    <Form.Label text="订阅付费计划" />
                     <SubscriptionPlanSelector
                         tiers={tiers}
                         onChange={setTiers}

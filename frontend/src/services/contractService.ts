@@ -96,6 +96,38 @@ export class ContractService {
   }
 
   /**
+   * 批量获取频道信息（ID 1-100）
+   */
+  static async getChannels(): Promise<Channel[]> {
+    const channels: Channel[] = [];
+    const promises: Promise<Channel | null>[] = [];
+
+    // 创建 1-100 的频道ID获取任务
+    for (let i = 1; i <= 100; i++) {
+      const promise = this.getChannel(BigInt(i))
+        .then(channel => channel)
+        .catch(() => null); // 如果频道不存在，返回null
+      promises.push(promise);
+    }
+
+    try {
+      const results = await Promise.allSettled(promises);
+      
+      // 过滤出成功获取的频道
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value) {
+          channels.push(result.value);
+        }
+      }
+      
+      return channels;
+    } catch (error) {
+      console.error('批量获取频道信息失败:', error);
+      throw error;
+    }
+  }
+
+  /**
    * 获取Topic信息
    */
   static async getTopic(topicId: bigint): Promise<Topic> {

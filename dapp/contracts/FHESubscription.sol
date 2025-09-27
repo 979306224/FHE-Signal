@@ -120,7 +120,9 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         emit ChannelCreated(newId, msg.sender, info);
         return newId;
     }
-
+    function getChannelMaxId() external view returns (uint256) {
+        return _currentChannelId;
+    }
 
 
     /**
