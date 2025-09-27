@@ -230,7 +230,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       try {
         const topic = await ContractService.getTopic(selectedTopicId);
         console.log('话题信息:', topic);
-        
+        const channel = await ContractService.getChannel(topic.channelId);
         const now = Math.floor(Date.now() / 1000);
         if (Number(topic.endDate) <= now) {
           Toast.error('话题已过期，无法提交信号');
@@ -248,7 +248,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         
         // 检查是否在白名单中
         const isInAllowlist = await ContractService.isInAllowlist(topic.channelId, userAddress);
-        if (!isInAllowlist) {
+        if (!isInAllowlist && channel.owner !== userAddress) {
           Toast.error('您不在白名单中，无法提交信号');
           setSubmittingSignal(false);
           return;

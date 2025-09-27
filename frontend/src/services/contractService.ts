@@ -24,7 +24,7 @@ import { showErrorTransactionToast, showPendingTransactionToast, showSuccessTran
 
 // 合约地址配置（从部署文件读取）
 const CONTRACT_ADDRESSES: ContractAddresses = {
-  FHESubscriptionManager: '0x9052ffC126deF2D5EEaDdFff85Dd9878a825DcfE',
+  FHESubscriptionManager: '0xe8B243Da04B3360b205246A4F0d2ef812AB8E14d',
   NFTFactory: '0xcB2EC254d95c337a82B0F10a6512579BB586C828'
 };
 
