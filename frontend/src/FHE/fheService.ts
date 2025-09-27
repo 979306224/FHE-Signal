@@ -239,6 +239,41 @@ export class FHEService {
   getInstance(): FhevmInstance | null {
     return fheInstance;
   }
+
+  /**
+   * 加密信号值
+   * @param value 要加密的数值
+   * @param contractAddress 合约地址
+   * @param userAddress 用户地址
+   */
+  async encryptSignalValue(
+    value: number,
+    contractAddress: string,
+    userAddress: string
+  ): Promise<{ encryptedValue: string; proof: string }> {
+    if (!this.isInitialized) throw new Error("FHE服务未初始化");
+
+    const instance = getFheInstance();
+    
+    try {
+      // 创建加密输入实例
+      const encryptedInput = this.createEncryptedInput(contractAddress, userAddress);
+      
+      // 加密数值（假设是uint8类型，根据合约要求）
+      const encryptedValue = encryptedInput.encrypt8(value);
+      
+      // 生成proof（这里使用简单的模拟proof，实际应该根据FHEVM要求生成）
+      const proof = "0x00"; // 实际实现中需要生成正确的proof
+      
+      return {
+        encryptedValue: encryptedValue,
+        proof: proof
+      };
+    } catch (error) {
+      console.error('FHE加密失败:', error);
+      throw new Error(`FHE加密失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    }
+  }
 }
 
 // 导出单例

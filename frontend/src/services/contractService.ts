@@ -24,7 +24,7 @@ import { showErrorTransactionToast, showPendingTransactionToast, showSuccessTran
 
 // 合约地址配置（从部署文件读取）
 const CONTRACT_ADDRESSES: ContractAddresses = {
-  FHESubscriptionManager: '0x4dAA0285a7e44Ef96BE6f0DAE2a3BF2305045443',
+  FHESubscriptionManager: '0x9052ffC126deF2D5EEaDdFff85Dd9878a825DcfE',
   NFTFactory: '0xcB2EC254d95c337a82B0F10a6512579BB586C828'
 };
 
@@ -32,6 +32,7 @@ const CONTRACT_ADDRESSES: ContractAddresses = {
 const FHE_SUBSCRIPTION_MANAGER_ABI = parseAbi([
   // 读取方法
   'function getChannel(uint256 id) view returns ((uint256 channelId, string info, address owner, (uint8 tier, uint256 price, uint256 subscribers)[] tiers, uint256 tierCount, address nftContract, uint256 createdAt, uint256 lastPublishedAt, uint256[] topicIds) channel)',
+  'function getChannelMaxId() view returns (uint256)',
   'function getTopic(uint256 topicId) view returns ((uint256 topicId, uint256 channelId, string ipfs, uint256 endDate, address creator, uint256 createdAt, uint8 minValue, uint8 maxValue, uint8 defaultValue, uint256 totalWeight, uint256 submissionCount, uint256[] signalIds) topic)',
   'function getSignal(uint256 signalId) view returns ((uint256 signalId, uint256 channelId, uint256 topicId, address submitter, uint256 submittedAt) signal)',
   'function getAllowlist(uint256 channelId) view returns ((address user, uint64 weight, bool exists)[] allowlist)',
@@ -96,21 +97,48 @@ export class ContractService {
   }
 
   /**
-   * 批量获取频道信息（ID 1-100）
+   * 获取当前最大频道ID
+   */
+  static async getChannelMaxId(): Promise<bigint> {
+    try {
+      const result = await readContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'getChannelMaxId'
+      });
+      
+      return result as bigint;
+    } catch (error) {
+      console.error('获取最大频道ID失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 批量获取所有频道信息
    */
   static async getChannels(): Promise<Channel[]> {
-    const channels: Channel[] = [];
-    const promises: Promise<Channel | null>[] = [];
-
-    // 创建 1-100 的频道ID获取任务
-    for (let i = 1; i <= 100; i++) {
-      const promise = this.getChannel(BigInt(i))
-        .then(channel => channel)
-        .catch(() => null); // 如果频道不存在，返回null
-      promises.push(promise);
-    }
-
     try {
+      // 首先获取最大频道ID
+      const maxId = await this.getChannelMaxId();
+      console.log(`获取到最大频道ID: ${maxId.toString()}`);
+      
+      if (maxId === 0n) {
+        console.log('当前没有任何频道');
+        return [];
+      }
+
+      const channels: Channel[] = [];
+      const promises: Promise<Channel | null>[] = [];
+
+      // 创建 1 到 maxId 的频道ID获取任务
+      for (let i = 1n; i <= maxId; i++) {
+        const promise = this.getChannel(i)
+          .then(channel => channel)
+          .catch(() => null); // 如果频道不存在，返回null
+        promises.push(promise);
+      }
+
       const results = await Promise.allSettled(promises);
       
       // 过滤出成功获取的频道
@@ -120,6 +148,7 @@ export class ContractService {
         }
       }
       
+      console.log(`成功获取 ${channels.length} 个频道，共尝试 ${maxId.toString()} 个ID`);
       return channels;
     } catch (error) {
       console.error('批量获取频道信息失败:', error);

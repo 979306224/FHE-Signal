@@ -1,0 +1,222 @@
+.channel-detail-modal {
+  .semi-card {
+    .semi-card-header {
+      .semi-typography {
+        font-weight: 600;
+        color: var(--semi-color-text-0);
+      }
+    }
+
+    .semi-card-body {
+      padding: 16px;
+    }
+  }
+
+  // 话题列表项样式
+  .semi-list-item {
+    &:hover {
+      background-color: var(--semi-color-fill-0);
+      transform: translateY(-1px);
+      transition: all 0.2s ease;
+    }
+
+    &.clickable-topic {
+      &:hover {
+        background-color: var(--semi-color-primary-light-hover) !important;
+        border-color: var(--semi-color-primary);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(var(--semi-color-primary), 0.15);
+      }
+
+      &:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 6px rgba(var(--semi-color-primary), 0.2);
+      }
+    }
+
+    .topic-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+
+      .topic-title {
+        flex: 1;
+        margin-right: 16px;
+      }
+
+      .topic-tags {
+        flex-shrink: 0;
+      }
+    }
+
+    .topic-description {
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+
+    .topic-metadata {
+      .semi-space {
+        .semi-typography {
+          color: var(--semi-color-text-2);
+        }
+      }
+    }
+  }
+
+  // 权限提示
+  .permission-hint {
+    padding: 12px;
+    background-color: var(--semi-color-info-light-default);
+    border-radius: 6px;
+    margin-bottom: 16px;
+
+    .semi-typography {
+      color: var(--semi-color-info);
+      margin: 0;
+    }
+  }
+
+  // 操作按钮区域
+  .action-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--semi-color-border);
+
+    .semi-button {
+      &:hover {
+        transform: translateY(-1px);
+        transition: transform 0.2s ease;
+      }
+    }
+  }
+
+  // 表单样式优化
+  .semi-form {
+    .semi-form-field {
+      margin-bottom: 16px;
+
+      .semi-form-field-label {
+        font-weight: 500;
+        color: var(--semi-color-text-0);
+      }
+
+      .semi-input,
+      .semi-input-number,
+      .semi-select,
+      .semi-datepicker {
+        width: 100%;
+      }
+    }
+  }
+
+  // 统计信息标签
+  .channel-stats {
+    .semi-tag {
+      margin-right: 8px;
+      margin-bottom: 4px;
+
+      &.subscribers {
+        background-color: rgba(var(--semi-blue-5), 0.1);
+        color: var(--semi-color-primary);
+      }
+
+      &.topics {
+        background-color: rgba(var(--semi-green-5), 0.1);
+        color: var(--semi-color-success);
+      }
+
+      &.price {
+        background-color: rgba(var(--semi-orange-5), 0.1);
+        color: var(--semi-color-warning);
+      }
+
+      &.id {
+        background-color: rgba(var(--semi-purple-5), 0.1);
+        color: var(--semi-color-purple);
+      }
+    }
+  }
+
+  // 加载状态
+  .loading-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+  }
+
+  // 空状态
+  .empty-container {
+    padding: 40px 20px;
+    text-align: center;
+  }
+}
+
+// 响应式布局
+@media (max-width: 768px) {
+  .channel-detail-modal {
+    .semi-modal {
+      width: 95vw !important;
+      margin: 2.5vw;
+    }
+
+    .topic-header {
+      flex-direction: column;
+      align-items: flex-start !important;
+
+      .topic-tags {
+        margin-top: 8px;
+      }
+    }
+
+    .action-buttons {
+      flex-direction: column;
+
+      .semi-button {
+        width: 100%;
+      }
+    }
+  }
+}
+
+// 话题状态样式
+.topic-status {
+  &.active {
+    color: var(--semi-color-success);
+    background-color: rgba(var(--semi-green-5), 0.1);
+  }
+
+  &.expired {
+    color: var(--semi-color-danger);
+    background-color: rgba(var(--semi-red-5), 0.1);
+  }
+}
+
+// 用户权限指示器
+.user-permission {
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+
+  &.owner {
+    background-color: rgba(var(--semi-amber-5), 0.1);
+    color: var(--semi-color-warning);
+    border: 1px solid rgba(var(--semi-amber-5), 0.3);
+  }
+
+  &.allowlist {
+    background-color: rgba(var(--semi-blue-5), 0.1);
+    color: var(--semi-color-primary);
+    border: 1px solid rgba(var(--semi-blue-5), 0.3);
+  }
+
+  &.guest {
+    background-color: rgba(var(--semi-grey-5), 0.1);
+    color: var(--semi-color-text-2);
+    border: 1px solid rgba(var(--semi-grey-5), 0.3);
+  }
+}

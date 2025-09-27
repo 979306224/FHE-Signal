@@ -1,7 +1,8 @@
 import { Card, Avatar, Tag, Typography, Space, Button } from '@douyinfe/semi-ui';
-import { IconUser, IconCalendar, IconMore } from '@douyinfe/semi-icons';
-import { useMemo } from 'react';
+import { IconUser, IconCalendar } from '@douyinfe/semi-icons';
+import { useMemo, useState } from 'react';
 import './ChannelCard.less';
+import ChannelDetailModal from './ChannelDetailModal';
 import type { Channel } from '../types/contracts';
 import type { IPFSChannel } from '../types/ipfs';
 import { ContractService } from '../services';
@@ -16,6 +17,8 @@ interface ChannelCardProps {
 }
 
 export default function ChannelCard({ channel, ipfsData, onViewDetails, onSubscribe }: ChannelCardProps) {
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  
   const formattedCreatedAt = useMemo(() => {
     return ContractService.formatTimestamp(channel.createdAt);
   }, [channel.createdAt]);
@@ -41,6 +44,7 @@ export default function ChannelCard({ channel, ipfsData, onViewDetails, onSubscr
   }, [channel.tiers]);
 
   const handleViewDetails = () => {
+    setShowDetailModal(true);
     onViewDetails?.(channel.channelId);
   };
 
@@ -49,17 +53,22 @@ export default function ChannelCard({ channel, ipfsData, onViewDetails, onSubscr
   };
 
   return (
-    <Card
+    <>
+    <div
       style={{ 
         width: '100%', 
         minHeight: 200,
         cursor: 'pointer',
         transition: 'all 0.2s ease',
-        border: '1px solid var(--semi-color-border)'
+      }}
+      onClick={handleViewDetails}
+    >
+    <Card
+      style={{ 
+        border: '1px solid var(--semi-color-border)',
+        height: '100%'
       }}
       bodyStyle={{ padding: 16 }}
-      hoverable
-      onClick={handleViewDetails}
     >
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         {/* 头部信息 */}
@@ -116,7 +125,7 @@ export default function ChannelCard({ channel, ipfsData, onViewDetails, onSubscr
           </Tag>
           
           <Tag size="small" color="green">
-            {channel.topicIds?.length || 0} 话题
+            {channel.topicIds?.length || 0} Topic
           </Tag>
           
           {tierInfo.tierCount > 0 && (
@@ -137,7 +146,7 @@ export default function ChannelCard({ channel, ipfsData, onViewDetails, onSubscr
           marginTop: 'auto',
           paddingTop: 8
         }}>
-          <Space size="small" align="center">
+          <Space align="center">
             <IconCalendar size="small" style={{ color: 'var(--semi-color-text-3)' }} />
             <Text type="tertiary" size="small">
               {formattedCreatedAt}
@@ -157,5 +166,15 @@ export default function ChannelCard({ channel, ipfsData, onViewDetails, onSubscr
         </div>
       </div>
     </Card>
+    </div>
+    
+    {/* 频道详情弹窗 */}
+    <ChannelDetailModal
+      visible={showDetailModal}
+      onClose={() => setShowDetailModal(false)}
+      channel={channel}
+      ipfsData={ipfsData}
+    />
+  </>
   );
 }
