@@ -23,12 +23,13 @@ function CachedPage({ children, path }: { children: React.ReactNode; path: strin
 }
 import Home from './pages/Home';
 import Channel from './pages/Channel';
-
+import { ChannelList } from './pages/ChannelList';
 function AppContent() {
   // 使用useMemo缓存页面组件，避免重复创建
   const cachedPages = useMemo(() => ({
     home: <Home />,
     channel: <Channel />,
+    channelList: <ChannelList />,
     // about: <About />,
     // contact: <Contact />
   }), []);
@@ -38,6 +39,7 @@ function AppContent() {
       <Navigation />
       <CachedPage path="/">{cachedPages.home}</CachedPage>
       <CachedPage path="/channel">{cachedPages.channel}</CachedPage>
+      <CachedPage path="/channelList">{cachedPages.channelList}</CachedPage>
       {/* <CachedPage path="/about">{cachedPages.about}</CachedPage>
       <CachedPage path="/contact">{cachedPages.contact}</CachedPage> */}
     </div>
