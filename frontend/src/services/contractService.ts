@@ -2,10 +2,9 @@ import {
   writeContract,
   readContract,
   waitForTransactionReceipt,
-  getPublicClient,
   simulateContract
 } from '@wagmi/core';
-import { parseEther, formatEther, parseAbi, type Address, type Hash } from 'viem';
+import { parseEther, formatEther, parseAbi, type Address } from 'viem';
 import { wagmiConfig } from '../config/wallet';
 import type {
   Channel,
@@ -21,6 +20,7 @@ import type {
   ContractAddresses
 } from '../types/contracts';
 import { DurationTier } from '../types/contracts';
+import { showErrorTransactionToast, showPendingTransactionToast, showSuccessTransactionToast } from '../components/TransactionToast';
 
 // 合约地址配置（从部署文件读取）
 const CONTRACT_ADDRESSES: ContractAddresses = {
@@ -323,9 +323,10 @@ export class ContractService {
    * 创建频道
    */
   static async createChannel(
-    info: string, 
+    info: string,
     tiers: TierPrice[]
   ): Promise<TransactionResult> {
+    const toastId = showPendingTransactionToast({ action: '创建频道' });
     try {
       // 首先模拟交易
       const { request } = await simulateContract(wagmiConfig, {
@@ -337,10 +338,18 @@ export class ContractService {
 
       // 执行交易
       const hash = await writeContract(wagmiConfig, request);
-      
+
+      showPendingTransactionToast({ id: toastId, action: '创建频道', hash });
+
       // 等待交易确认
       const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
-      
+
+      if (receipt.status === 'success') {
+        showSuccessTransactionToast({ id: toastId, action: '创建频道', hash });
+      } else {
+        showErrorTransactionToast({ id: toastId, action: '创建频道', hash, message: '交易未成功' });
+      }
+
       return {
         hash,
         blockNumber: receipt.blockNumber,
@@ -349,6 +358,13 @@ export class ContractService {
       };
     } catch (error) {
       console.error('创建频道失败:', error);
+
+      showErrorTransactionToast({
+        id: toastId,
+        action: '创建频道',
+        message: error instanceof Error ? error.message : '未知错误'
+      });
+
       return {
         hash: '',
         success: false,
@@ -368,6 +384,7 @@ export class ContractService {
     maxValue: number,
     defaultValue: number
   ): Promise<TransactionResult> {
+    const toastId = showPendingTransactionToast({ action: '创建话题' });
     try {
       const { request } = await simulateContract(wagmiConfig, {
         address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
@@ -377,7 +394,16 @@ export class ContractService {
       });
 
       const hash = await writeContract(wagmiConfig, request);
+
+      showPendingTransactionToast({ id: toastId, action: '创建话题', hash });
+
       const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
+
+      if (receipt.status === 'success') {
+        showSuccessTransactionToast({ id: toastId, action: '创建话题', hash });
+      } else {
+        showErrorTransactionToast({ id: toastId, action: '创建话题', hash, message: '交易未成功' });
+      }
       
       return {
         hash,
@@ -387,6 +413,13 @@ export class ContractService {
       };
     } catch (error) {
       console.error('创建Topic失败:', error);
+
+      showErrorTransactionToast({
+        id: toastId,
+        action: '创建话题',
+        message: error instanceof Error ? error.message : '未知错误'
+      });
+
       return {
         hash: '',
         success: false,
@@ -399,6 +432,7 @@ export class ContractService {
    * 批量添加到Allowlist
    */
   static async batchAddToAllowlist(params: BatchAllowlistParams): Promise<TransactionResult> {
+    const toastId = showPendingTransactionToast({ action: '批量添加白名单' });
     try {
       const { request } = await simulateContract(wagmiConfig, {
         address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
@@ -408,7 +442,16 @@ export class ContractService {
       });
 
       const hash = await writeContract(wagmiConfig, request);
+
+      showPendingTransactionToast({ id: toastId, action: '批量添加白名单', hash });
+
       const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
+
+      if (receipt.status === 'success') {
+        showSuccessTransactionToast({ id: toastId, action: '批量添加白名单', hash });
+      } else {
+        showErrorTransactionToast({ id: toastId, action: '批量添加白名单', hash, message: '交易未成功' });
+      }
       
       return {
         hash,
@@ -418,6 +461,13 @@ export class ContractService {
       };
     } catch (error) {
       console.error('批量添加到Allowlist失败:', error);
+
+      showErrorTransactionToast({
+        id: toastId,
+        action: '批量添加白名单',
+        message: error instanceof Error ? error.message : '未知错误'
+      });
+
       return {
         hash: '',
         success: false,
@@ -430,6 +480,7 @@ export class ContractService {
    * 批量从Allowlist移除
    */
   static async batchRemoveFromAllowlist(params: BatchRemoveParams): Promise<TransactionResult> {
+    const toastId = showPendingTransactionToast({ action: '批量移除白名单' });
     try {
       const { request } = await simulateContract(wagmiConfig, {
         address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
@@ -439,7 +490,16 @@ export class ContractService {
       });
 
       const hash = await writeContract(wagmiConfig, request);
+
+      showPendingTransactionToast({ id: toastId, action: '批量移除白名单', hash });
+
       const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
+
+      if (receipt.status === 'success') {
+        showSuccessTransactionToast({ id: toastId, action: '批量移除白名单', hash });
+      } else {
+        showErrorTransactionToast({ id: toastId, action: '批量移除白名单', hash, message: '交易未成功' });
+      }
       
       return {
         hash,
@@ -449,6 +509,13 @@ export class ContractService {
       };
     } catch (error) {
       console.error('批量从Allowlist移除失败:', error);
+
+      showErrorTransactionToast({
+        id: toastId,
+        action: '批量移除白名单',
+        message: error instanceof Error ? error.message : '未知错误'
+      });
+
       return {
         hash: '',
         success: false,
@@ -461,10 +528,11 @@ export class ContractService {
    * 订阅频道
    */
   static async subscribe(
-    channelId: bigint, 
-    tier: DurationTier, 
+    channelId: bigint,
+    tier: DurationTier,
     paymentAmount: string
   ): Promise<TransactionResult> {
+    const toastId = showPendingTransactionToast({ action: '订阅频道' });
     try {
       const value = parseEther(paymentAmount);
       
@@ -477,7 +545,16 @@ export class ContractService {
       });
 
       const hash = await writeContract(wagmiConfig, request);
+
+      showPendingTransactionToast({ id: toastId, action: '订阅频道', hash });
+
       const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
+
+      if (receipt.status === 'success') {
+        showSuccessTransactionToast({ id: toastId, action: '订阅频道', hash });
+      } else {
+        showErrorTransactionToast({ id: toastId, action: '订阅频道', hash, message: '交易未成功' });
+      }
       
       return {
         hash,
@@ -487,6 +564,13 @@ export class ContractService {
       };
     } catch (error) {
       console.error('订阅失败:', error);
+
+      showErrorTransactionToast({
+        id: toastId,
+        action: '订阅频道',
+        message: error instanceof Error ? error.message : '未知错误'
+      });
+
       return {
         hash: '',
         success: false,
@@ -503,6 +587,7 @@ export class ContractService {
     encryptedValue: string,
     proof: string
   ): Promise<TransactionResult> {
+    const toastId = showPendingTransactionToast({ action: '提交信号' });
     try {
       const { request } = await simulateContract(wagmiConfig, {
         address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
@@ -512,7 +597,16 @@ export class ContractService {
       });
 
       const hash = await writeContract(wagmiConfig, request);
+
+      showPendingTransactionToast({ id: toastId, action: '提交信号', hash });
+
       const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
+
+      if (receipt.status === 'success') {
+        showSuccessTransactionToast({ id: toastId, action: '提交信号', hash });
+      } else {
+        showErrorTransactionToast({ id: toastId, action: '提交信号', hash, message: '交易未成功' });
+      }
       
       return {
         hash,
@@ -522,6 +616,13 @@ export class ContractService {
       };
     } catch (error) {
       console.error('提交Signal失败:', error);
+
+      showErrorTransactionToast({
+        id: toastId,
+        action: '提交信号',
+        message: error instanceof Error ? error.message : '未知错误'
+      });
+
       return {
         hash: '',
         success: false,
@@ -538,6 +639,7 @@ export class ContractService {
     topicId: bigint,
     tokenId: bigint
   ): Promise<TransactionResult> {
+    const toastId = showPendingTransactionToast({ action: '访问话题结果' });
     try {
       const { request } = await simulateContract(wagmiConfig, {
         address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
@@ -547,7 +649,16 @@ export class ContractService {
       });
 
       const hash = await writeContract(wagmiConfig, request);
+
+      showPendingTransactionToast({ id: toastId, action: '访问话题结果', hash });
+
       const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
+
+      if (receipt.status === 'success') {
+        showSuccessTransactionToast({ id: toastId, action: '访问话题结果', hash });
+      } else {
+        showErrorTransactionToast({ id: toastId, action: '访问话题结果', hash, message: '交易未成功' });
+      }
       
       return {
         hash,
@@ -557,6 +668,13 @@ export class ContractService {
       };
     } catch (error) {
       console.error('访问Topic结果失败:', error);
+
+      showErrorTransactionToast({
+        id: toastId,
+        action: '访问话题结果',
+        message: error instanceof Error ? error.message : '未知错误'
+      });
+
       return {
         hash: '',
         success: false,

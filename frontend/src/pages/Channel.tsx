@@ -1,7 +1,7 @@
 import { Button, Card, Checkbox, Divider, Input, Space, TextArea, Typography } from '@douyinfe/semi-ui';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useAccount } from 'wagmi';
-import { ContractService, DurationTier, PinataService, type DurationTier as DurationTierValue, type TransactionResult } from '../services';
+import { ContractService, DurationTier, PinataService, type DurationTier as DurationTierValue } from '../services';
 
 type TierFormState = {
   tier: DurationTierValue;
@@ -20,8 +20,6 @@ type FeedbackState = {
   type: 'success' | 'warning' | 'danger';
   message: string;
 };
-
-const EXPLORER_BASE_URL = 'https://sepolia.etherscan.io/tx/';
 
 const FEEDBACK_COLORS = {
   success: {
@@ -82,7 +80,6 @@ function Channel() {
   const [description, setDescription] = useState('');
   const [tierConfigs, setTierConfigs] = useState<TierFormState[]>(() => createDefaultTierConfigs());
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [txResult, setTxResult] = useState<TransactionResult | null>(null);
   const [ipfsResult, setIpfsResult] = useState<UploadResult | null>(null);
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
 
@@ -155,7 +152,6 @@ function Channel() {
     }
 
     setIsSubmitting(true);
-    setTxResult(null);
     setIpfsResult(null);
     setFeedback(null);
 
@@ -174,7 +170,6 @@ function Channel() {
       }));
 
       const result = await ContractService.createChannel(metadata.ipfsUri, tiers);
-      setTxResult(result);
 
       if (result.success) {
         setFeedback({ type: 'success', message: '频道创建成功，元数据已上传至 IPFS' });
@@ -310,26 +305,6 @@ function Channel() {
             </Card>
           )}
 
-          {txResult && (
-            <Card type="inner" title="合约交易结果">
-              <Space vertical style={{ width: '100%' }}>
-                <Typography.Text type={txResult.success ? 'success' : 'danger'}>
-                  {txResult.success ? '交易成功' : '交易失败'}
-                </Typography.Text>
-                {txResult.hash && (
-                  <Typography.Text>
-                    交易哈希：
-                    <a href={`${EXPLORER_BASE_URL}${txResult.hash}`} target="_blank" rel="noreferrer">
-                      {txResult.hash}
-                    </a>
-                  </Typography.Text>
-                )}
-                {!txResult.success && txResult.error && (
-                  <Typography.Text type="danger">错误信息：{txResult.error}</Typography.Text>
-                )}
-              </Space>
-            </Card>
-          )}
         </Space>
       </Card>
     </div>

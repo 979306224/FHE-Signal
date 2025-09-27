@@ -13,3 +13,6 @@ export { default as PinataService } from './pinataService';
 
 // 导出类型定义
 export * from '../types/contracts';
+
+// 导出交易提示工具
+export * from '../components/TransactionToast';
