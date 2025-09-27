@@ -1,5 +1,4 @@
 .form{
-
     .form-item{
         display: flex;
         align-items: center;
@@ -12,5 +11,50 @@
 
         }
     }
+}
 
+.infoText {
+    color: var(--semi-color-text-2);
+    font-size: 12px;
+    margin-top: 8px;
+}
+
+/* Modal 滚动优化 */
+.semi-modal-content {
+  .semi-modal-body {
+    /* 确保滚动条样式一致 */
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    &::-webkit-scrollbar-track {
+      background: var(--semi-color-fill-0);
+      border-radius: 4px;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: var(--semi-color-border);
+      border-radius: 4px;
+      
+      &:hover {
+        background: var(--semi-color-text-3);
+      }
+    }
+  }
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  .semi-modal {
+    .semi-modal-content {
+      width: 95vw !important;
+      height: 95vh !important;
+      margin: 2.5vh auto;
+      
+      .semi-modal-body {
+        max-height: calc(95vh - 120px) !important;
+        padding: 16px !important;
+      }
+    }
+  }
 }

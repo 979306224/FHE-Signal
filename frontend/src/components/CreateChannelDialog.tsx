@@ -5,20 +5,23 @@ import { IconUpload } from '@douyinfe/semi-icons';
 import { useCallback, useMemo, useRef, useState } from 'react';
 
 import type { FormApi } from '@douyinfe/semi-ui/lib/es/form';
-import type { UploadFile } from '@douyinfe/semi-ui/lib/es/upload/interface';
-import { PinataService } from '../services';
+import { PinataService, ContractService } from '../services';
+import { type TierPrice } from '../types/contracts';
+import SubscriptionPlanSelector from './SubscriptionPlanSelector';
 
 type CreateChannelFormValues = {
     name: string;
     description: string;
     logo: string;
-    logoFile: UploadFile[];
+    logoFile: any[];
+    tiers: TierPrice[];
 };
 
 export default function CreateChannelDialog() {
 
     const [visible, setVisible] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [tiers, setTiers] = useState<TierPrice[]>([]);
 
     const formApiRef = useRef<FormApi<CreateChannelFormValues> | null>(null);
 
@@ -51,6 +54,7 @@ export default function CreateChannelDialog() {
 
     const handleOpen = useCallback(() => {
         setVisible(true);
+        setTiers([]);
         formApiRef.current?.reset();
     }, []);
 
@@ -59,18 +63,19 @@ export default function CreateChannelDialog() {
             return;
         }
         setVisible(false);
+        setTiers([]);
         formApiRef.current?.reset();
     }, [submitting]);
 
     const uploadAction = useMemo(() => ({
         customRequest: async ({ file, fileInstance, onProgress, onError, onSuccess }: {
-            file: UploadFile;
+            file: any;
             fileInstance?: File;
             onProgress?: (event: { total: number; loaded: number }) => void;
-            onError?: (error: Error) => void;
-            onSuccess?: (response: unknown, file?: UploadFile) => void;
+            onError?: (error: any) => void;
+            onSuccess?: (response: unknown, file?: any) => void;
         }) => {
-            const realFile = extractFileInstance(fileInstance ?? (file as UploadFile & { fileInstance?: File }).fileInstance ?? file);
+            const realFile = extractFileInstance(fileInstance ?? (file as any)?.fileInstance ?? file);
             if (!realFile) {
                 onError?.(new Error('无效的文件类型'));
                 return;
@@ -79,7 +84,7 @@ export default function CreateChannelDialog() {
                 const result = await PinataService.uploadFile(realFile, percent => {
                     onProgress?.({ total: 100, loaded: percent });
                 });
-                const uploadFile: UploadFile = {
+                const uploadFile: any = {
                     uid: file.uid ?? realFile.name,
                     name: realFile.name,
                     status: 'success',
@@ -110,15 +115,56 @@ export default function CreateChannelDialog() {
         const { logoFile, ...rest } = values;
         const submitPayload = {
             ...rest,
-            logo: values.logo
+            logo: values.logo,
+            tiers: tiers
         };
         console.log(submitPayload, 'submitPayload');
-        // 提交这个json到ipfs
-        const result = await PinataService.uploadJson(submitPayload);
-        console.log(result, submitting);
+        
+        // 验证至少有一个付费计划
+        if (!tiers || tiers.length === 0) {
+            Toast.error('请至少配置一个付费计划');
+            setSubmitting(false);
+            return;
+        }
+        
+        try {
+            // 提交这个json到ipfs
+            const ipfsResult = await PinataService.uploadJson(submitPayload);
+            console.log('IPFS上传结果:', ipfsResult);
+
+            // 提交到合约
+            const contractResult = await ContractService.createChannel(
+                ipfsResult.ipfsUri, // 使用IPFS URI作为频道信息
+                tiers
+            );
+
+            if (contractResult.success) {
+                const message = contractResult.channelId 
+                    ? `频道创建成功！频道ID: ${contractResult.channelId.toString()}`
+                    : `频道创建成功！交易哈希: ${contractResult.hash}`;
+                Toast.success(message);
+                
+                console.log('频道创建结果:', {
+                    channelId: contractResult.channelId?.toString(),
+                    hash: contractResult.hash,
+                    ipfsUri: ipfsResult.ipfsUri
+                });
+                
+                setVisible(false);
+                setTiers([]);
+                formApiRef.current?.reset();
+            } else {
+                Toast.error(`创建频道失败: ${contractResult.error || '未知错误'}`);
+            }
+        } catch (error) {
+            console.error('创建频道过程中出错:', error);
+            Toast.error(`创建频道失败: ${error instanceof Error ? error.message : '未知错误'}`);
+        } finally {
+            setSubmitting(false);
+        }
 
         // 
-    }, []);
+    }, [tiers]);
 
 
     return <>
@@ -128,6 +174,13 @@ export default function CreateChannelDialog() {
             onCancel={handleCancel}
             closeOnEsc={!submitting}
             maskClosable={!submitting}
+            fullScreen
+            
+            bodyStyle={{
+                maxHeight: 'calc(90vh - 120px)',
+                overflowY: 'auto',
+                padding: '24px'
+            }}
             footer={
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
                     <Button onClick={handleCancel} disabled={submitting}>取消</Button>
@@ -139,12 +192,13 @@ export default function CreateChannelDialog() {
         >
             <Form
                 labelPosition="top"
-                getFormApi={formApi => (formApiRef.current = formApi)}
+                getFormApi={formApi => (formApiRef.current = formApi as any)}
                 initValues={{
                     name: '',
                     description: '',
                     logo: '',
-                    logoFile: []
+                    logoFile: [] as any[],
+                    tiers: [] as TierPrice[]
                 }}
             >
                 <Form.Input
@@ -179,10 +233,13 @@ export default function CreateChannelDialog() {
                 />
                 <div className="infoText" >推荐使用96x96的图片</div>
 
-                <Form.Label>付费计划</Form.Label>
-                    <div>
-
-                    </div>
+                <div style={{ marginBottom: 24 }}>
+                    <Form.Label text="付费计划" />
+                    <SubscriptionPlanSelector
+                        tiers={tiers}
+                        onChange={setTiers}
+                    />
+                </div>
 
             </Form>
         </Modal>

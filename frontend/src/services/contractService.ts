@@ -269,7 +269,7 @@ export class ContractService {
         args: [channelId, tokenId]
       });
       
-      return result as SubscriptionNFT;
+      return result as unknown as SubscriptionNFT;
     } catch (error) {
       console.error('获取订阅信息失败:', error);
       throw error;
@@ -325,7 +325,7 @@ export class ContractService {
   static async createChannel(
     info: string,
     tiers: TierPrice[]
-  ): Promise<TransactionResult> {
+  ): Promise<TransactionResult & { channelId?: bigint }> {
     const toastId = showPendingTransactionToast({ action: '创建频道' });
     try {
       // 首先模拟交易
@@ -333,7 +333,7 @@ export class ContractService {
         address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
         abi: FHE_SUBSCRIPTION_MANAGER_ABI,
         functionName: 'createChannel',
-        args: [info, tiers]
+        args: [info, tiers as any]
       });
 
       // 执行交易
@@ -345,17 +345,63 @@ export class ContractService {
       const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
 
       if (receipt.status === 'success') {
+        // 尝试从事件日志中提取ChannelId
+        let channelId: bigint | undefined;
+        
+        try {
+          // ChannelCreated事件的签名哈希 (keccak256("ChannelCreated(uint256,address,string)"))
+          const channelCreatedSignature = '0x7c6b8e2c936da8f68bb7780c28a2a9ce07d9c1d3f86e8a2e96ca9b1b59b6a4e8';
+          
+          // 查找ChannelCreated事件（使用已知的事件签名或简单匹配）
+          const channelCreatedEvent = receipt.logs.find((log: any) => {
+            return log.topics && log.topics.length >= 2 && 
+                   (log.topics[0] === channelCreatedSignature || 
+                    log.address?.toLowerCase() === CONTRACT_ADDRESSES.FHESubscriptionManager.toLowerCase());
+          });
+          
+          if (channelCreatedEvent && channelCreatedEvent.topics[1]) {
+            // 第一个indexed参数（channelId）
+            channelId = BigInt(channelCreatedEvent.topics[1]);
+            console.log('创建的频道ID:', channelId.toString());
+          } else {
+            // 降级处理：尝试从第一个有效的日志中解析
+            const firstLog = receipt.logs.find((log: any) => 
+              log.topics && log.topics.length >= 2
+            );
+            if (firstLog) {
+              try {
+                if (firstLog.topics[1]) {
+                  channelId = BigInt(firstLog.topics[1]);
+                  console.log('推测的频道ID:', channelId.toString());
+                }
+              } catch {
+                console.warn('无法解析频道ID');
+              }
+            }
+          }
+        } catch (eventError) {
+          console.warn('提取频道ID失败:', eventError);
+        }
+
         showSuccessTransactionToast({ id: toastId, action: '创建频道', hash });
+        
+        return {
+          hash,
+          blockNumber: receipt.blockNumber,
+          gasUsed: receipt.gasUsed,
+          success: receipt.status === 'success',
+          channelId
+        };
       } else {
         showErrorTransactionToast({ id: toastId, action: '创建频道', hash, message: '交易未成功' });
+        
+        return {
+          hash,
+          blockNumber: receipt.blockNumber,
+          gasUsed: receipt.gasUsed,
+          success: false
+        };
       }
-
-      return {
-        hash,
-        blockNumber: receipt.blockNumber,
-        gasUsed: receipt.gasUsed,
-        success: receipt.status === 'success'
-      };
     } catch (error) {
       console.error('创建频道失败:', error);
 
