@@ -6,9 +6,7 @@ import { WagmiProvider } from 'wagmi';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import './App.css';
 import Navigation from './components/Navigation';
-import Home from './pages/Home';
-import About from './pages/About';
-import Contact from './pages/Contact';
+
 import { wagmiConfig } from './config/wallet';
 import { FHEProvider } from './FHE/fheContext';
 
@@ -23,21 +21,25 @@ function CachedPage({ children, path }: { children: React.ReactNode; path: strin
     </div>
   );
 }
+import Home from './pages/Home';
+import Channel from './pages/Channel';
 
 function AppContent() {
   // 使用useMemo缓存页面组件，避免重复创建
   const cachedPages = useMemo(() => ({
     home: <Home />,
-    about: <About />,
-    contact: <Contact />
+    channel: <Channel />,
+    // about: <About />,
+    // contact: <Contact />
   }), []);
 
   return (
     <div>
       <Navigation />
       <CachedPage path="/">{cachedPages.home}</CachedPage>
-      <CachedPage path="/about">{cachedPages.about}</CachedPage>
-      <CachedPage path="/contact">{cachedPages.contact}</CachedPage>
+      <CachedPage path="/channel">{cachedPages.channel}</CachedPage>
+      {/* <CachedPage path="/about">{cachedPages.about}</CachedPage>
+      <CachedPage path="/contact">{cachedPages.contact}</CachedPage> */}
     </div>
   );
 }

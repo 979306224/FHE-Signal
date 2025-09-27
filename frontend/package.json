@@ -14,15 +14,18 @@
     "@rainbow-me/rainbowkit": "^2.2.8",
     "@tanstack/react-query": "^5.90.2",
     "@zama-fhe/relayer-sdk": "^0.2.0",
+    "pinata": "^2.5.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.9.3",
     "reset.css": "^2.0.2",
     "viem": "^2.37.8",
+    "vite-plugin-semi-theme": "^0.6.0",
     "wagmi": "^2.17.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
+    "@semi-bot/semi-theme-zamatest": "^1.0.0",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.3",
