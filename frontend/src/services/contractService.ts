@@ -59,7 +59,7 @@ const FHE_SUBSCRIPTION_MANAGER_ABI = parseAbi([
   'function createTopic(uint256 channelId, string ipfs, uint256 endDate, uint8 minValue, uint8 maxValue, uint8 defaultValue) returns (uint256)',
   'function batchAddToAllowlist(uint256 channelId, address[] users, uint64[] weights)',
   'function batchRemoveFromAllowlist(uint256 channelId, address[] users)',
-  'function submitSignal(uint256 topicId, bytes inputValue, bytes proof) returns (uint256)',
+  'function submitSignal(uint256 topicId, bytes32 inputValue, bytes proof) returns (uint256)',
   'function subscribe(uint256 channelId, uint8 tier) payable returns (uint256)',
   'function accessTopicResult(uint256 channelId, uint256 topicId, uint256 tokenId)',
   'function resetTopicAccess(uint256 topicId, address user)'

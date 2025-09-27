@@ -293,6 +293,13 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         return;
       }
 
+      // 验证 encryptedValueHandle 是 32 字节（bytes32）
+      if (encryptedValueHandle.length !== 32) {
+        Toast.error(`FHE 加密失败：encryptedValue 长度应为 32 字节，实际为 ${encryptedValueHandle.length} 字节`);
+        setSubmittingSignal(false);
+        return;
+      }
+
       // 使用相同的转换函数
       const uint8ArrayToHex = (array: Uint8Array): `0x${string}` => {
         return `0x${Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('')}` as `0x${string}`;
