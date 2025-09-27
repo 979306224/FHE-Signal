@@ -28,6 +28,11 @@ const CONTRACT_ADDRESSES: ContractAddresses = {
   NFTFactory: '0xcB2EC254d95c337a82B0F10a6512579BB586C828'
 };
 
+// 工具函数
+const uint8ArrayToHex = (array: Uint8Array): `0x${string}` => {
+  return `0x${Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('')}` as `0x${string}`;
+};
+
 // 合约ABI - 这里只包含主要方法，实际使用时需要完整的ABI
 const FHE_SUBSCRIPTION_MANAGER_ABI = parseAbi([
   // 读取方法
@@ -687,20 +692,44 @@ export class ContractService {
   }
 
   /**
+   * 获取提交Signal的合约调用配置（用于useWriteContract）
+   */
+  static getSubmitSignalConfig(
+    topicId: bigint,
+    encryptedValue: Uint8Array,
+    proof: Uint8Array
+  ) {
+    // 转换 Uint8Array 为 hex 字符串
+    const encryptedValueHex = uint8ArrayToHex(encryptedValue);
+    const proofHex = uint8ArrayToHex(proof);
+
+    return {
+      address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+      abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+      functionName: 'submitSignal' as const,
+      args: [topicId, encryptedValueHex, proofHex] as const
+    };
+  }
+
+  /**
    * 提交Signal（需要FHE加密）
    */
   static async submitSignal(
     topicId: bigint,
-    encryptedValue: string,
-    proof: string
+    encryptedValue: Uint8Array,
+    proof: Uint8Array
   ): Promise<TransactionResult> {
     const toastId = showPendingTransactionToast({ action: '提交信号' });
     try {
+      // 转换 Uint8Array 为 hex 字符串
+      const encryptedValueHex = uint8ArrayToHex(encryptedValue);
+      const proofHex = uint8ArrayToHex(proof);
+
       const { request } = await simulateContract(wagmiConfig, {
         address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
         abi: FHE_SUBSCRIPTION_MANAGER_ABI,
         functionName: 'submitSignal',
-        args: [topicId, encryptedValue as `0x${string}`, proof as `0x${string}`]
+        args: [topicId, encryptedValueHex, proofHex]
       });
 
       const hash = await writeContract(wagmiConfig, request);

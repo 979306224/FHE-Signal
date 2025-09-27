@@ -1,12 +1,13 @@
 import { Modal, Typography, Space, Button, Card, Tag, Avatar, List, Empty, Spin, Toast, Form } from '@douyinfe/semi-ui';
 import { IconUser, IconCalendar, IconPlus } from '@douyinfe/semi-icons';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useAccount } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import type { Channel, Topic } from '../types/contracts';
 import type { IPFSChannel } from '../types/ipfs';
 import { ContractService, PinataService } from '../services';
 import { fheService } from '../FHE/fheService';
-import { useFHE } from '../FHE/fheContext';
+import { useFHE, FHEStatus } from '../FHE/fheContext';
+import { FHEStatusIndicator } from '../FHE/FHEStatusIndicator';
 import './ChannelDetailModal.less';
 
 const { Title, Text } = Typography;
@@ -27,7 +28,18 @@ interface TopicWithIPFS extends Topic {
 
 export default function ChannelDetailModal({ visible, onClose, channel, ipfsData }: ChannelDetailModalProps) {
   const { address: userAddress, isConnected } = useAccount();
-  const { isReady: fheReady } = useFHE();
+  const { status: fheStatus, isReady } = useFHE();
+  const fheReady = fheStatus === FHEStatus.READY && isReady();
+  
+  // 调试FHE状态
+  useEffect(() => {
+    console.log('FHE状态调试:', {
+      fheStatus,
+      isReady: isReady(),
+      fheReady,
+      FHEStatus: FHEStatus
+    });
+  }, [fheStatus, fheReady]);
   const [topics, setTopics] = useState<TopicWithIPFS[]>([]);
   const [loadingTopics, setLoadingTopics] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
@@ -38,6 +50,37 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
   const [creatingTopic, setCreatingTopic] = useState(false);
   const [submittingSignal, setSubmittingSignal] = useState(false);
   const [signalValue, setSignalValue] = useState<string>('');
+  const [formApiRef, setFormApiRef] = useState<any>(null);
+
+  // 使用 useWriteContract hook
+  const { writeContractAsync, isPending: isWritePending } = useWriteContract();
+  const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
+  
+  // 等待交易确认
+  const { data: receipt, isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash: pendingTxHash as `0x${string}` | undefined,
+  });
+
+  // 处理交易状态变化
+  useEffect(() => {
+    if (isConfirmed && receipt) {
+      console.log('交易确认结果:', receipt);
+      if (receipt.status === 'success') {
+        Toast.success('信号提交成功！');
+        setShowSubmitSignal(false);
+        setSelectedTopicId(null);
+        setSignalValue('');
+        setPendingTxHash(null);
+        // 重新加载话题列表
+        loadTopics();
+      } else {
+        console.error('交易失败，receipt:', receipt);
+        Toast.error('交易失败，请查看控制台了解详情');
+        setPendingTxHash(null);
+      }
+      setSubmittingSignal(false);
+    }
+  }, [isConfirmed, receipt]);
 
   // 检查用户权限
   useEffect(() => {
@@ -157,7 +200,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
   }, [userAddress, channel.channelId, creatingTopic, loadTopics]);
 
   const handleSubmitSignal = useCallback(async (values?: any) => {
-    if (!userAddress || !selectedTopicId || submittingSignal) return;
+    if (!userAddress || !selectedTopicId || submittingSignal || isWritePending) return;
 
     setSubmittingSignal(true);
     try {
@@ -165,18 +208,55 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       const value = values?.value || signalValue;
       if (!value) {
         Toast.error('请输入信号值');
+        setSubmittingSignal(false);
         return;
       }
 
       const numericValue = Number(value);
       if (isNaN(numericValue)) {
         Toast.error('请输入有效的数值');
+        setSubmittingSignal(false);
         return;
       }
 
       // 检查FHE是否就绪
       if (!fheReady) {
         Toast.error('FHE服务未就绪，请稍后重试');
+        setSubmittingSignal(false);
+        return;
+      }
+
+      // 预检查：验证话题是否存在且未过期
+      try {
+        const topic = await ContractService.getTopic(selectedTopicId);
+        console.log('话题信息:', topic);
+        
+        const now = Math.floor(Date.now() / 1000);
+        if (Number(topic.endDate) <= now) {
+          Toast.error('话题已过期，无法提交信号');
+          setSubmittingSignal(false);
+          return;
+        }
+        
+        // 检查是否已经提交过
+        const hasSubmitted = await ContractService.hasSubmitted(selectedTopicId, userAddress);
+        if (hasSubmitted) {
+          Toast.error('您已经提交过信号了');
+          setSubmittingSignal(false);
+          return;
+        }
+        
+        // 检查是否在白名单中
+        const isInAllowlist = await ContractService.isInAllowlist(topic.channelId, userAddress);
+        if (!isInAllowlist) {
+          Toast.error('您不在白名单中，无法提交信号');
+          setSubmittingSignal(false);
+          return;
+        }
+      } catch (error) {
+        console.error('预检查失败:', error);
+        Toast.error('无法验证话题信息，请稍后重试');
+        setSubmittingSignal(false);
         return;
       }
 
@@ -184,39 +264,87 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       const contractAddresses = ContractService.getContractAddresses();
       const contractAddress = contractAddresses.FHESubscriptionManager;
 
-      // 使用FHE加密信号值
-      console.log('开始FHE加密信号值:', numericValue);
-      const { encryptedValue, proof } = await fheService.encryptSignalValue(
-        numericValue,
+      // 使用FHE加密信号值 - 按照参考模式
+      console.log('开始FHE加密信号值:', {
+        value: numericValue,
         contractAddress,
-        userAddress
-      );
-
-      console.log('FHE加密完成:', { encryptedValue, proof });
+        userAddress,
+        topicId: selectedTopicId.toString()
+      });
       
-      // 提交加密后的信号
-      const result = await ContractService.submitSignal(
+      // 验证 FHE 服务状态
+      if (!fheService.isReady()) {
+        Toast.error('FHE 服务未就绪');
+        setSubmittingSignal(false);
+        return;
+      }
+      
+      const encryptedInput = fheService.createEncryptedInput(contractAddress, userAddress);
+      encryptedInput.add8(numericValue);
+      
+      const encryptedResult = await encryptedInput.encrypt();
+      const encryptedValueHandle = encryptedResult.handles[0];
+      const proof = encryptedResult.inputProof;
+      
+      // 验证加密结果
+      if (!encryptedValueHandle || !proof) {
+        Toast.error('FHE 加密失败：缺少加密数据或证明');
+        setSubmittingSignal(false);
+        return;
+      }
+
+      // 使用相同的转换函数
+      const uint8ArrayToHex = (array: Uint8Array): `0x${string}` => {
+        return `0x${Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('')}` as `0x${string}`;
+      };
+
+      console.log('FHE加密完成:', { 
+        encryptedValue: `Uint8Array(${encryptedValueHandle.length})`,
+        proof: `Uint8Array(${proof.length})`,
+        encryptedValueHex: uint8ArrayToHex(encryptedValueHandle),
+        proofHex: uint8ArrayToHex(proof)
+      });
+      
+      // 获取合约调用配置
+      const contractConfig = ContractService.getSubmitSignalConfig(
         selectedTopicId,
-        encryptedValue,
+        encryptedValueHandle,
         proof
       );
 
-      if (result.success) {
-        Toast.success('信号提交成功！');
-        setShowSubmitSignal(false);
-        setSelectedTopicId(null);
-        setSignalValue('');
-      } else {
-        Toast.error(`提交信号失败: ${result.error}`);
-      }
+      // 使用 useWriteContract 执行交易
+      console.log('提交交易配置:', contractConfig);
+      const hash = await writeContractAsync(contractConfig);
+      console.log('交易哈希:', hash);
+      setPendingTxHash(hash);
+      
+      Toast.info('交易已提交，等待确认...');
     } catch (error) {
       console.error('提交信号失败:', error);
-      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      
+      // 详细的错误信息处理
+      let errorMessage = '未知错误';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // 检查常见的合约错误
+        if (error.message.includes('TopicNotFound')) {
+          errorMessage = '话题不存在';
+        } else if (error.message.includes('TopicExpired')) {
+          errorMessage = '话题已过期';
+        } else if (error.message.includes('NotInAllowlist')) {
+          errorMessage = '您不在白名单中，无法提交信号';
+        } else if (error.message.includes('AlreadySubmitted')) {
+          errorMessage = '您已经提交过信号了';
+        } else if (error.message.includes('revert')) {
+          errorMessage = '合约调用失败，请检查权限和参数';
+        }
+      }
+      
       Toast.error(`提交信号失败: ${errorMessage}`);
-    } finally {
       setSubmittingSignal(false);
     }
-  }, [userAddress, selectedTopicId, submittingSignal, signalValue, fheReady]);
+  }, [userAddress, selectedTopicId, submittingSignal, signalValue, fheReady, isWritePending, writeContractAsync, loadTopics]);
 
   // 点击话题提交信号
   const handleTopicClick = useCallback((topic: TopicWithIPFS) => {
@@ -437,19 +565,32 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
           footer={null}
           width={600}
         >
-          <Form onSubmit={handleCreateTopic}>
+          <Form 
+            onSubmit={handleCreateTopic}
+            getFormApi={(formApi) => setFormApiRef(formApi)}
+          >
             <Form.Input
               field="title"
               label="话题标题"
               placeholder="请输入话题标题"
               rules={[{ required: true, message: '请输入话题标题' }]}
             />
+            <div style={{ marginTop: -8, marginBottom: 16 }}>
+              <Text type="tertiary" size="small">
+                为话题起一个简洁明了的标题，让用户快速了解话题内容
+              </Text>
+            </div>
             
             <Form.Input
               field="description"
               label="话题描述"
               placeholder="请输入话题描述"
             />
+            <div style={{ marginTop: -8, marginBottom: 16 }}>
+              <Text type="tertiary" size="small">
+                详细描述话题的背景、目的和参与方式，帮助用户理解话题
+              </Text>
+            </div>
             
             <Form.Input
               field="endDate"
@@ -465,6 +606,11 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                 return oneWeekLater.toISOString().slice(0, 16);
               })()}
             />
+            <div style={{ marginTop: -8, marginBottom: 16 }}>
+              <Text type="tertiary" size="small">
+                设置话题的结束时间，到期后用户将无法再提交信号
+              </Text>
+            </div>
             
             <Form.InputNumber
               field="minValue"
@@ -474,7 +620,21 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               style={{ width: '100%' }}
               initValue={1}
               min={1}
+              max={100}
+              onChange={(value) => {
+                // 如果输入值超出1-100范围，自动改为1
+                const numValue = Number(value);
+                if (value && (numValue < 1 || numValue > 100)) {
+                  formApiRef?.setValue('minValue', 1);
+                  Toast.warning('最小值超出范围，已自动调整为1');
+                }
+              }}
             />
+            <div style={{ marginTop: -8, marginBottom: 16 }}>
+              <Text type="tertiary" size="small">
+                用户可提交信号的最小值，超出范围将自动调整为 默认值
+              </Text>
+            </div>
             
             <Form.InputNumber
               field="maxValue"
@@ -484,7 +644,21 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               style={{ width: '100%' }}
               initValue={100}
               min={1}
+              max={100}
+              onChange={(value) => {
+                // 如果输入值超出1-100范围，自动改为100
+                const numValue = Number(value);
+                if (value && (numValue < 1 || numValue > 100)) {
+                  formApiRef?.setValue('maxValue', 100);
+                  Toast.warning('最大值超出范围，已自动调整为100');
+                }
+              }}
             />
+            <div style={{ marginTop: -8, marginBottom: 16 }}>
+              <Text type="tertiary" size="small">
+                用户可提交信号的最大值，超出范围将自动调整为 默认值
+              </Text>
+            </div>
             
             <Form.InputNumber
               field="defaultValue"
@@ -495,7 +669,20 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               initValue={50}
               min={1}
               max={100}
+              onChange={(value) => {
+                // 如果输入值超出1-100范围，自动改为50
+                const numValue = Number(value);
+                if (value && (numValue < 1 || numValue > 100)) {
+                  formApiRef?.setValue('defaultValue', 50);
+                  Toast.warning('默认值超出范围，已自动调整为50');
+                }
+              }}
             />
+            <div style={{ marginTop: -8, marginBottom: 16 }}>
+              <Text type="tertiary" size="small">
+                用户提交信号时,如果超出范围会调整到的默认值
+              </Text>
+            </div>
             
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
               <Button onClick={() => setShowCreateTopic(false)}>
@@ -533,13 +720,12 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                   ) : null;
                 })()}
               </div>
-              {!fheReady && (
-                <div style={{ marginTop: 8, padding: 8, backgroundColor: 'var(--semi-color-warning-light-default)', borderRadius: 4 }}>
-                  <Text type="warning" size="small">
-                    ⚠️ FHE服务未就绪，无法提交加密信号
-                  </Text>
-                </div>
-              )}
+              <div style={{ marginTop: 8, padding: 8, backgroundColor: 'var(--semi-color-fill-0)', borderRadius: 4 }}>
+                <Space align="center">
+                  <Text type="secondary" size="small">FHE状态：</Text>
+                  <FHEStatusIndicator showLabel={true} size="small" />
+                </Space>
+              </div>
             </div>
           )}
           
@@ -547,10 +733,29 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
             <Form.InputNumber
               field="value"
               label="信号值"
-              placeholder="请输入信号值"
-              rules={[{ required: true, message: '请输入信号值' }]}
+              placeholder="请输入正整数"
+              rules={[
+                { required: true, message: '请输入信号值' },
+                { 
+                  validator: (_, value) => {
+                    if (value && (value <= 0 || !Number.isInteger(value))) {
+                      return new Error('请输入正整数');
+                    }
+                    return true;
+                  }
+                }
+              ]}
               style={{ width: '100%' }}
+              min={1}
+              step={1}
+              precision={0}
+              onChange={(value) => setSignalValue(value ? value.toString() : '')}
             />
+            <div style={{ marginTop: -8, marginBottom: 16 }}>
+              <Text type="tertiary" size="small">
+                请输入符合topic设定的正整数，超出范围将自动调整
+              </Text>
+            </div>
             
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
               <Button onClick={() => {
@@ -563,10 +768,13 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               <Button 
                 htmlType="submit" 
                 type="primary" 
-                loading={submittingSignal}
-                disabled={!signalValue || !fheReady}
+                loading={submittingSignal || isWritePending || isConfirming}
+                disabled={!signalValue || !fheReady || submittingSignal || isWritePending}
               >
-                {!fheReady ? 'FHE未就绪' : '提交信号'}
+                {!fheReady ? 'FHE未就绪' : 
+                 isWritePending ? '提交中...' : 
+                 isConfirming ? '确认中...' : 
+                 '提交信号'}
               </Button>
             </div>
           </Form>

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { initSDK, createInstance, SepoliaConfig } from '@zama-fhe/relayer-sdk/bundle';
 import type { FhevmInstance } from '@zama-fhe/relayer-sdk/bundle';
+import { fheService } from './fheService';
 
 // 扩展Window接口
 declare global {
@@ -47,68 +47,31 @@ export function FHEProvider({ children }: FHEProviderProps) {
       return;
     }
 
+    setStatus(FHEStatus.LOADING);
+    setError(null);
+
     try {
-      setStatus(FHEStatus.LOADING);
-      setError(null);
-      
-      console.log('🔄 开始初始化FHE SDK...');
-      
-      // 初始化SDK
-      await initSDK();
-      console.log('✅ FHE SDK初始化完成');
-      
-      // 检查是否有以太坊提供者
-      if (typeof window !== 'undefined' && window.ethereum) {
-        console.log('🔗 检测到以太坊提供者，尝试切换到Sepolia网络...');
-        
-        // 尝试切换到Sepolia网络
-        try {
-          await window.ethereum.request({
-            method: "wallet_switchEthereumChain",
-            params: [{ chainId: "0xaa36a7" }],
-          });
-        } catch (switchError: any) {
-          if (switchError.code === 4902) {
-            // 网络不存在，添加Sepolia网络
-            await window.ethereum.request({
-              method: "wallet_addEthereumChain",
-              params: [
-                {
-                  chainId: "0xaa36a7",
-                  chainName: "Sepolia",
-                  nativeCurrency: { name: "Sepolia Ether", symbol: "SEP", decimals: 18 },
-                  rpcUrls: ["https://rpc.sepolia.org"],
-                  blockExplorerUrls: ["https://sepolia.etherscan.io"],
-                },
-              ],
-            });
-          } else {
-            console.warn("网络切换失败，可能已经在其他网络上:", switchError);
-          }
-        }
-        
-        const config = { ...SepoliaConfig, network: window.ethereum };
-        const fheInstance = await createInstance(config);
-        setInstance(fheInstance);
-        setStatus(FHEStatus.READY);
-        console.log('✅ FHE实例创建成功（带以太坊提供者）');
-      } else {
-        console.log('⚠️ 未检测到以太坊提供者，创建基础FHE实例...');
-        // 没有钱包连接时也可以初始化FHE，但功能有限
-        const fheInstance = await createInstance(SepoliaConfig);
-        setInstance(fheInstance);
-        setStatus(FHEStatus.READY);
-        console.log('✅ FHE基础实例创建成功');
+      console.log('[FHE] 准备初始化服务...');
+      await fheService.initialize();
+
+      const serviceInstance = fheService.getInstance();
+      if (!serviceInstance) {
+        throw new Error('FHE服务未初始化');
       }
+
+      setInstance(serviceInstance);
+      setStatus(FHEStatus.READY);
+      console.log('[FHE] 服务初始化完成');
     } catch (err) {
-      console.error('❌ FHE初始化失败:', err);
+      console.error('[FHE] 初始化失败', err);
+      setInstance(null);
       setError(err instanceof Error ? err.message : '未知错误');
       setStatus(FHEStatus.ERROR);
     }
   };
 
   const isReady = () => {
-    return status === FHEStatus.READY && instance !== null;
+    return fheService.isReady();
   };
 
   // 自动初始化

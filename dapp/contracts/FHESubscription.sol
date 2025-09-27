@@ -358,8 +358,13 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         if (block.timestamp >= topic.endDate) revert TopicExpired();
 
         // allowlist 与重复提交校验
+        Channel storage channel = _channels[topic.channelId];
         AllowlistEntry storage allowlistEntry = _channelAllowlists[topic.channelId][msg.sender];
-        if (!allowlistEntry.exists) revert NotInAllowlist();
+        
+        // channel的owner不需要在白名单中也可以提交signal
+        if (!allowlistEntry.exists && channel.owner != msg.sender) {
+            revert NotInAllowlist();
+        }
         if (_hasSubmitted[topicId][msg.sender]) revert AlreadySubmitted();
 
         // 外部密文转 euint8（链下加密 -> 链上密文）
@@ -394,7 +399,10 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
          
          // 标记提交 & 更新加权平均（内部已做 euint64 对齐）
          _hasSubmitted[topicId][msg.sender] = true;
-         _updateAverage(topicId, value, allowlistEntry.weight);
+         
+         // 如果用户在allowlist中，使用其权重；否则使用默认权重1
+         uint64 weight = allowlistEntry.exists ? allowlistEntry.weight : 1;
+         _updateAverage(topicId, value, weight);
  
          // 事件
          emit SignalSubmitted(topicId, newSignalId, msg.sender);

@@ -23,6 +23,7 @@ export class FHEService {
   private static instance: FHEService;
   private isInitialized = false;
   private hasFailed = false;
+  private initializationPromise: Promise<void> | null = null;
 
   private constructor() {}
 
@@ -35,31 +36,62 @@ export class FHEService {
 
   /** 初始化FHE SDK并连接MetaMask到Sepolia */
   async initialize() {
-    if (this.isInitialized || this.hasFailed) return;
-    
+    if (this.isInitialized) {
+      return;
+    }
+
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    const initPromise = this.performInitialization();
+    this.initializationPromise = initPromise;
+
     try {
-      console.log('🔄 开始初始化FHE SDK...');
+      await initPromise;
+    } finally {
+      this.initializationPromise = null;
+    }
+  }
+
+  private async performInitialization(): Promise<void> {
+    this.hasFailed = false;
+
+    try {
+      console.log('[FHE] 开始初始化FHE SDK...');
       await initSDK();
 
-      if (!window.ethereum) {
-        console.log('⚠️ 未检测到以太坊提供者，创建基础FHE实例...');
+      const hasWindow = typeof window !== 'undefined';
+      if (!hasWindow) {
+        console.log('[FHE] 未检测到浏览器环境，创建基础FHE实例...');
+        // 非浏览器环境时创建基础实例
+        const config = SepoliaConfig;
+        fheInstance = await createInstance(config);
+        this.isInitialized = true;
+        console.log('[FHE] FHE基础实例初始化完成');
+        return;
+      }
+
+      const ethereumProvider = window.ethereum;
+
+      if (!ethereumProvider) {
+        console.log('[FHE] 未检测到以太坊提供者，创建基础FHE实例...');
         // 没有钱包时创建基础实例
         const config = SepoliaConfig;
         fheInstance = await createInstance(config);
         this.isInitialized = true;
-        console.log('✅ FHE基础实例初始化完成');
+        console.log('[FHE] FHE基础实例初始化完成');
         return;
       }
 
-      // 尝试切换到或添加Sepolia网络
       try {
-        await window.ethereum.request({
+        await ethereumProvider.request({
           method: "wallet_switchEthereumChain",
           params: [{ chainId: "0xaa36a7" }],
         });
       } catch (switchError: any) {
         if (switchError.code === 4902) {
-          await window.ethereum.request({
+          await ethereumProvider.request({
             method: "wallet_addEthereumChain",
             params: [
               {
@@ -72,19 +104,31 @@ export class FHEService {
             ],
           });
         } else {
-          console.warn("网络切换失败，可能已经在其他网络上:", switchError);
+          console.warn('[FHE] 网络切换失败，可能已经在其他网络？', switchError);
         }
       }
-      
-      const config = { ...SepoliaConfig, network: window.ethereum };
+
+      const config = { ...SepoliaConfig, network: ethereumProvider };
       fheInstance = await createInstance(config);
 
       this.isInitialized = true;
-      console.log("✅ FHE SDK初始化完成");
+      console.log('[FHE] FHE SDK初始化完成');
     } catch (err) {
-      console.error("❌ FHE SDK初始化失败:", err);
+      console.error('[FHE] FHE SDK初始化失败', err);
       this.hasFailed = true;
       throw err;
+    }
+  }
+
+  private async ensureInitialized(): Promise<void> {
+    if (this.isInitialized) {
+      return;
+    }
+
+    await this.initialize();
+
+    if (!this.isInitialized) {
+      throw new Error("FHE服务未初始化");
     }
   }
 
@@ -105,7 +149,7 @@ export class FHEService {
     contractAddress: string,
     signer: Signer
   ): Promise<DecryptedResults> {
-    if (!this.isInitialized) throw new Error("FHE服务未初始化");
+    await this.ensureInitialized();
 
     const instance = getFheInstance();
 
@@ -176,8 +220,9 @@ export class FHEService {
     contractAddress: string,
     walletClient: WalletClient
   ): Promise<DecryptedResults> {
-    if (!this.isInitialized) throw new Error("FHE服务未初始化");
     if (!walletClient.account) throw new Error("钱包账户未连接");
+
+    await this.ensureInitialized();
 
     const instance = getFheInstance();
 
@@ -250,20 +295,21 @@ export class FHEService {
     value: number,
     contractAddress: string,
     userAddress: string
-  ): Promise<{ encryptedValue: string; proof: string }> {
-    if (!this.isInitialized) throw new Error("FHE服务未初始化");
+  ): Promise<{ encryptedValue: any; proof: any }> {
+    await this.ensureInitialized();
 
     const instance = getFheInstance();
     
     try {
       // 创建加密输入实例
-      const encryptedInput = this.createEncryptedInput(contractAddress, userAddress);
+      const encryptedInput = await this.createEncryptedInput(contractAddress, userAddress)
+                                  .add8(value)
+                                  .encrypt()
+
+
+      const encryptedValue = encryptedInput.handles[0]
       
-      // 加密数值（假设是uint8类型，根据合约要求）
-      const encryptedValue = encryptedInput.encrypt8(value);
-      
-      // 生成proof（这里使用简单的模拟proof，实际应该根据FHEVM要求生成）
-      const proof = "0x00"; // 实际实现中需要生成正确的proof
+      const proof = encryptedInput.inputProof
       
       return {
         encryptedValue: encryptedValue,
