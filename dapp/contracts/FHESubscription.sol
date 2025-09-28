@@ -811,20 +811,6 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         return _hasAccessed[topicId][msg.sender];
     }
 
-    /**
-     * @dev Reset user's topic access record (only callable by channel owner)
-     * @param topicId topic ID
-     * @param user User address
-     */
-    function resetTopicAccess(uint256 topicId, address user) external {
-        Topic storage topic = _topics[topicId];
-        if (topic.topicId == 0) revert TopicNotFound();
-        
-        Channel storage channel = _channels[topic.channelId];
-        if (channel.owner != msg.sender) revert NotChannelOwner();
-        
-        _hasAccessed[topicId][user] = false;
-    }
 
 
 

@@ -65,9 +65,10 @@ const TIER_DESCRIPTIONS: Record<DurationTier, string> = {
 
 export interface ChannelSubscribeModalProps {
     channelId: bigint;
+    onSubscribeSuccess?: () => void;
 }
 
-export default function ChannelSubscribeModal({ channelId }: ChannelSubscribeModalProps) {
+export default function ChannelSubscribeModal({ channelId, onSubscribeSuccess }: ChannelSubscribeModalProps) {
     const [visible, setVisible] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -230,6 +231,8 @@ export default function ChannelSubscribeModal({ channelId }: ChannelSubscribeMod
                 Toast.success(`Successfully subscribed to ${TIER_NAMES[tier]} tier!`);
                 // Refresh channel info and user subscription info
                 await loadChannelInfo();
+                // Notify parent component to refresh subscription status
+                onSubscribeSuccess?.();
             } else {
                 Toast.error(`Subscription failed: ${result.error || 'Unknown error'}`);
             }
