@@ -38,12 +38,12 @@ const FHE_SUBSCRIPTION_MANAGER_ABI = parseAbi([
   // 读取方法
   'function getChannel(uint256 id) view returns ((uint256 channelId, string info, address owner, (uint8 tier, uint256 price, uint256 subscribers)[] tiers, uint256 tierCount, address nftContract, uint256 createdAt, uint256 lastPublishedAt, uint256[] topicIds) channel)',
   'function getChannelMaxId() view returns (uint256)',
-  'function getTopic(uint256 topicId) view returns ((uint256 topicId, uint256 channelId, string ipfs, uint256 endDate, address creator, uint256 createdAt, uint8 minValue, uint8 maxValue, uint8 defaultValue, uint256 totalWeight, uint256 submissionCount, uint256[] signalIds) topic)',
-  'function getSignal(uint256 signalId) view returns ((uint256 signalId, uint256 channelId, uint256 topicId, address submitter, uint256 submittedAt) signal)',
+  'function getTopic(uint256 topicId) view returns ((uint256 topicId, uint256 channelId, string ipfs, uint256 endDate, address creator, uint256 createdAt, uint8 minValue, uint8 maxValue, uint8 defaultValue, bytes32 totalWeightedValue, bytes32 average, uint256 totalWeight, uint256 submissionCount, uint256[] signalIds) topic)',
+  'function getSignal(uint256 signalId) view returns ((uint256 signalId, uint256 channelId, uint256 topicId, address submitter, bytes32 value, uint256 submittedAt) signal)',
   'function getAllowlist(uint256 channelId) view returns ((address user, uint64 weight, bool exists)[] allowlist)',
   'function getAllowlistPaginated(uint256 channelId, uint256 offset, uint256 limit) view returns ((address user, uint64 weight, bool exists)[] allowlist, uint256 total)',
-  'function getChannelTopics(uint256 channelId) view returns ((uint256 topicId, uint256 channelId, string ipfs, uint256 endDate, address creator, uint256 createdAt, uint8 minValue, uint8 maxValue, uint8 defaultValue, uint256 totalWeight, uint256 submissionCount, uint256[] signalIds)[] topics)',
-  'function getTopicSignals(uint256 topicId) view returns ((uint256 signalId, uint256 channelId, uint256 topicId, address submitter, uint256 submittedAt)[] signals)',
+  'function getChannelTopics(uint256 channelId) view returns ((uint256 topicId, uint256 channelId, string ipfs, uint256 endDate, address creator, uint256 createdAt, uint8 minValue, uint8 maxValue, uint8 defaultValue, bytes32 totalWeightedValue, bytes32 average, uint256 totalWeight, uint256 submissionCount, uint256[] signalIds)[] topics)',
+  'function getTopicSignals(uint256 topicId) view returns ((uint256 signalId, uint256 channelId, uint256 topicId, address submitter, bytes32 value, uint256 submittedAt)[] signals)',
   'function isInAllowlist(uint256 channelId, address user) view returns (bool)',
   'function hasSubmitted(uint256 topicId, address user) view returns (bool)',
   'function hasAccessedTopic(uint256 topicId, address user) view returns (bool)',
@@ -173,7 +173,7 @@ export class ContractService {
         args: [topicId]
       });
       
-      return result as Topic;
+      return result as unknown as Topic;
     } catch (error) {
       console.error('获取Topic信息失败:', error);
       throw error;
@@ -259,9 +259,43 @@ export class ContractService {
         args: [channelId]
       });
       
-      return result as Topic[];
+      return result as unknown as Topic[];
     } catch (error) {
       console.error('获取频道Topics失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 根据topicIds批量获取Topic信息
+   */
+  static async getTopicsByIds(topicIds: bigint[]): Promise<Topic[]> {
+    try {
+      if (topicIds.length === 0) {
+        return [];
+      }
+
+      // 并行获取所有topic信息
+      const topicPromises = topicIds.map(topicId => 
+        this.getTopic(topicId).catch(error => {
+          console.warn(`获取Topic ${topicId} 失败:`, error);
+          return null; // 返回null表示获取失败
+        })
+      );
+
+      const results = await Promise.allSettled(topicPromises);
+      
+      // 过滤出成功获取的topics
+      const topics: Topic[] = [];
+      results.forEach((result) => {
+        if (result.status === 'fulfilled' && result.value) {
+          topics.push(result.value);
+        }
+      });
+
+      return topics;
+    } catch (error) {
+      console.error('批量获取Topics失败:', error);
       throw error;
     }
   }
@@ -278,7 +312,7 @@ export class ContractService {
         args: [topicId]
       });
       
-      return result as Signal[];
+      return result as unknown as Signal[];
     } catch (error) {
       console.error('获取Topic Signals失败:', error);
       throw error;

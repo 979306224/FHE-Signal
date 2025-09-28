@@ -18,10 +18,10 @@ function Navigation() {
       to: '/'
     },
     {
-      itemKey: '/channel',
+      itemKey: '/channelList',
       text: 'Channel列表',
       icon: <IconInfoCircle />,
-      to: '/channel'
+      to: '/channelList'
     }
   ], []);
 

@@ -96,6 +96,8 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         const ownerStatus = channel.owner.toLowerCase() === userAddress.toLowerCase();
         setIsOwner(ownerStatus);
 
+        console.log('channel', channel);
+
         // 检查是否在白名单中
         if (!ownerStatus) {
           const allowlistStatus = await ContractService.isInAllowlist(channel.channelId, userAddress);
@@ -119,7 +121,12 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
     
     setLoadingTopics(true);
     try {
-      const topicData = await ContractService.getChannelTopics(channel.channelId);
+      // 根据channel.topicIds获取topic信息
+      const topicIds = channel.topicIds || [];
+      console.log('channel.topicIds', topicIds);
+      
+      const topicData = await ContractService.getTopicsByIds(topicIds);
+      console.log('topicData', topicData);
       
       // 并行获取IPFS数据
       const topicsWithIPFS = await Promise.allSettled(
@@ -152,7 +159,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
     } finally {
       setLoadingTopics(false);
     }
-  }, [channel.channelId, visible]);
+  }, [channel.channelId, channel.topicIds, visible]);
 
   useEffect(() => {
     if (visible) {
