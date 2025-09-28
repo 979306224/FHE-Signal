@@ -763,7 +763,7 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
      * @dev Get encrypted average value of topic for subscribed users (requires client-side decryption)
      * @param channelId Channel ID
      * @param topicId topic ID
-     * @param tokenId User's subscription NFT ID
+     * @param tokenId User's subscription NFT ID (ignored if user is channel owner)
      */
     function accessTopicResult(
         uint256 channelId,
@@ -782,8 +782,16 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         // Check if user has already decrypted this topic
         if (_hasAccessed[topicId][msg.sender]) revert AlreadyAccessed();
         
-        // Verify user has valid subscription
+        // Check if user is channel owner - if so, skip NFT validation
+        if (channel.owner == msg.sender) {
+            // Channel owner can access without NFT
+            _hasAccessed[topicId][msg.sender] = true;
+            FHE.allow(topic.average, msg.sender);
+            emit TopicResultAccessed(topicId, msg.sender, 0); // Use 0 as tokenId for owner access
+            return;
+        }
         
+        // For non-owners, verify user has valid subscription
         ChannelNFT nftContract = ChannelNFT(channel.nftContract);
         if (nftContract.ownerOf(tokenId) != msg.sender) revert NotSubscriptionOwner();
         if (!nftContract.isSubscriptionValid(tokenId)) revert SubscriptionExpired();
