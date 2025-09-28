@@ -55,24 +55,27 @@ export default function ChannelCard({ channel, ipfsData, onViewDetails, onSubscr
   return (
     <>
     <div
+      className="channel-card-wrapper"
       style={{ 
         width: '100%', 
-        minHeight: 200,
+        height: '180px',
         cursor: 'pointer',
         transition: 'all 0.2s ease',
       }}
       onClick={handleViewDetails}
     >
     <Card
+      className="channel-card"
       style={{ 
         border: '1px solid var(--semi-color-border)',
-        height: '100%'
+        height: '100%',
+        width: '100%'
       }}
-      bodyStyle={{ padding: 16 }}
+      bodyStyle={{ padding: 16, height: '100%' }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         {/* 头部信息 */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 12, flexShrink: 0 }}>
           <Avatar 
             size="large"
             src={ipfsData?.logo ? ipfsData.logo.replace('ipfs://', 'https://ipfs.io/ipfs/') : undefined}
@@ -117,34 +120,49 @@ export default function ChannelCard({ channel, ipfsData, onViewDetails, onSubscr
           </div>
         </div>
 
-        {/* 统计信息 */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-          <Tag size="small" color="blue">
-            <IconUser style={{ marginRight: 4 }} />
-            {totalSubscribers.toString()} 订阅者
-          </Tag>
-          
-          <Tag size="small" color="green">
-            {channel.topicIds?.length || 0} Topic
-          </Tag>
-          
-          {tierInfo.tierCount > 0 && (
-            <Tag size="small" color="orange">
-              {tierInfo.minPrice === tierInfo.maxPrice 
-                ? `${tierInfo.minPrice} ETH`
-                : `${tierInfo.minPrice} - ${tierInfo.maxPrice} ETH`
-              }
+        {/* 统计信息 - 可滚动区域 */}
+        <div style={{ 
+          flex: 1, 
+          overflow: 'hidden',
+          minHeight: 0
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            gap: 8, 
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            paddingBottom: 4,
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'var(--semi-color-border) transparent'
+          }}>
+            <Tag size="small" color="blue" style={{ flexShrink: 0 }}>
+              <IconUser style={{ marginRight: 4 }} />
+              {totalSubscribers.toString()} 订阅者
             </Tag>
-          )}
+            
+            <Tag size="small" color="green" style={{ flexShrink: 0 }}>
+              {channel.topicIds?.length || 0} Topic
+            </Tag>
+            
+            {tierInfo.tierCount > 0 && (
+              <Tag size="small" color="orange" style={{ flexShrink: 0 }}>
+                {tierInfo.minPrice === tierInfo.maxPrice 
+                  ? `${tierInfo.minPrice} ETH`
+                  : `${tierInfo.minPrice} - ${tierInfo.maxPrice} ETH`
+                }
+              </Tag>
+            )}
+          </div>
         </div>
 
-        {/* 底部信息 */}
+        {/* 底部信息 - 固定在底部 */}
         <div style={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
-          marginTop: 'auto',
-          paddingTop: 8
+          paddingTop: 8,
+          flexShrink: 0,
+
         }}>
           <Space align="center">
             <IconCalendar size="small" style={{ color: 'var(--semi-color-text-3)' }} />
