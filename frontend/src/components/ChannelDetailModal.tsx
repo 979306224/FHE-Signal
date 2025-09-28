@@ -145,6 +145,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
   // Decryption related state
   const [decryptedResults, setDecryptedResults] = useState<Map<bigint, any>>(new Map());
   const [decryptingTopics, setDecryptingTopics] = useState<Set<bigint>>(new Set());
+  const [topicAccessStatus, setTopicAccessStatus] = useState<Map<bigint, boolean>>(new Map());
 
   // FHE progress state
   const [showFHEProgress, setShowFHEProgress] = useState(false);
@@ -272,13 +273,30 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       // Sort by creation time in descending order
       validTopics.sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
       setTopics(validTopics);
+
+      // Check access status for each topic if user is connected
+      if (userAddress && isConnected) {
+        const accessStatusMap = new Map<bigint, boolean>();
+        await Promise.all(
+          validTopics.map(async (topic) => {
+            try {
+              const hasAccess = await ContractService.hasAccessedTopic(topic.topicId, userAddress);
+              accessStatusMap.set(topic.topicId, hasAccess);
+            } catch (error) {
+              console.warn(`Failed to check access for topic ${topic.topicId}:`, error);
+              accessStatusMap.set(topic.topicId, false);
+            }
+          })
+        );
+        setTopicAccessStatus(accessStatusMap);
+      }
     } catch (error) {
       console.error('Failed to load topics:', error);
       Toast.error('Failed to load topic list');
     } finally {
       setLoadingTopics(false);
     }
-  }, [channel.channelId, channel.topicIds, visible]);
+  }, [channel.channelId, channel.topicIds, visible, userAddress, isConnected]);
 
   useEffect(() => {
     if (visible) {
@@ -579,6 +597,96 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         return;
       }
 
+      // Check if user has already accessed this topic
+      const hasAccessed = await ContractService.hasAccessedTopic(topicId, userAddress);
+      console.log('Has accessed topic:', hasAccessed);
+
+      if (!hasAccessed) {
+        // User hasn't accessed yet, need to request access first
+        Toast.info('Requesting access to decrypt topic results...');
+
+        let tokenId: bigint = 0n; // Default to 0 for owner
+
+        if (!isOwner) {
+          // For non-owners, find a valid NFT token for this channel
+          if (!channel.nftContract) {
+            Toast.error('No NFT contract found for this channel');
+            return;
+          }
+
+          try {
+            // Get user's valid subscription NFTs
+            const validTokenIds = await ContractService.getUserValidSubscriptions(
+              channel.nftContract,
+              userAddress
+            );
+            console.log('User valid subscription tokenIds:', validTokenIds);
+
+            // Find a token that belongs to this channel
+            let validTokenId: bigint | null = null;
+            for (const tid of validTokenIds) {
+              try {
+                // Get subscription info to verify it belongs to this channel
+                const subscription = await readContract(wagmiConfig, {
+                  address: channel.nftContract as Address,
+                  abi: parseAbi([
+                    'function getSubscription(uint256 tokenId) view returns ((uint256 channelId, uint256 expiresAt, uint8 tier, address subscriber, uint256 mintedAt) subscription)'
+                  ]),
+                  functionName: 'getSubscription',
+                  args: [tid]
+                }) as unknown as SubscriptionNFT;
+
+                if (subscription.channelId === channel.channelId) {
+                  validTokenId = tid;
+                  console.log('Found valid tokenId for channel:', tid.toString());
+                  break;
+                }
+              } catch (err) {
+                console.warn('Failed to check subscription for tokenId', tid.toString(), ':', err);
+              }
+            }
+
+            if (!validTokenId) {
+              Toast.error('No valid subscription found for this channel');
+              return;
+            }
+
+            tokenId = validTokenId;
+          } catch (error) {
+            console.error('Failed to find valid subscription:', error);
+            Toast.error('Failed to find valid subscription for this channel');
+            return;
+          }
+        }
+
+        // Request access to the topic
+        try {
+          const result = await ContractService.accessTopicResult(
+            channel.channelId,
+            topicId,
+            tokenId
+          );
+
+          if (!result.success) {
+            Toast.error('Failed to obtain access to topic results');
+            return;
+          }
+
+          // Update access status
+          setTopicAccessStatus(prev => {
+            const newMap = new Map(prev);
+            newMap.set(topicId, true);
+            return newMap;
+          });
+
+          Toast.success('Access granted! Now decrypting...');
+        } catch (error) {
+          console.error('Failed to request topic access:', error);
+          Toast.error('Failed to obtain access to topic results');
+          return;
+        }
+      }
+
       // Use FHE to decrypt
       const contractAddresses = ContractService.getContractAddresses();
       const contractAddress = contractAddresses.FHESubscriptionManager;
@@ -616,7 +724,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         return newSet;
       });
     }
-  }, [userAddress, fheReady, walletClient, isOwner, hasValidSubscription]);
+  }, [userAddress, fheReady, walletClient, isOwner, hasValidSubscription, channel]);
 
   const tierInfo = useMemo(() => {
     if (!channel.tiers || channel.tiers.length === 0) {
@@ -878,7 +986,11 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                                 }}
                                 disabled={!fheReady}
                               >
-                                {decryptingTopics.has(topic.topicId) ? 'Decrypting...' : 'Decrypt'}
+                                {decryptingTopics.has(topic.topicId)
+                                  ? 'Decrypting...'
+                                  : topicAccessStatus.get(topic.topicId)
+                                    ? 'Decrypt'
+                                    : 'Access Decrypt'}
                               </Button>
                             )}
                           </div>

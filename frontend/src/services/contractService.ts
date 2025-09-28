@@ -24,8 +24,8 @@ import { showErrorTransactionToast, showPendingTransactionToast, showSuccessTran
 
 // Contract address configuration (read from deployment file)
 const CONTRACT_ADDRESSES: ContractAddresses = {
-  FHESubscriptionManager: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
-  NFTFactory: '0x5FbDB2315678afecb367f032d93F642f64180aa3'
+  FHESubscriptionManager: '0xED08F918E3fA2572A77Cb69B71C69FDcC73f25eE',
+  NFTFactory: '0xcB2EC254d95c337a82B0F10a6512579BB586C828'
 };
 
 // Utility functions
@@ -368,10 +368,29 @@ export class ContractService {
         functionName: 'hasSubmitted',
         args: [topicId, userAddress as Address]
       });
-      
+
       return result as boolean;
     } catch (error) {
       console.error('Failed to check submission status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if user has accessed topic results
+   */
+  static async hasAccessedTopic(topicId: bigint, userAddress: string): Promise<boolean> {
+    try {
+      const result = await readContract(wagmiConfig, {
+        address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
+        abi: FHE_SUBSCRIPTION_MANAGER_ABI,
+        functionName: 'hasAccessedTopic',
+        args: [topicId, userAddress as Address]
+      });
+
+      return result as boolean;
+    } catch (error) {
+      console.error('Failed to check topic access status:', error);
       throw error;
     }
   }

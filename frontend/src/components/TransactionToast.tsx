@@ -104,7 +104,6 @@ export const showPendingTransactionToast = (options: TransactionToastOptions): s
   const { action, hash, message } = options;
   Toast.info({
     id: toastId,
-    duration: 0,
     showClose: true,
     stack: true,
     content: (
