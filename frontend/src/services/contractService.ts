@@ -24,7 +24,7 @@ import { showErrorTransactionToast, showPendingTransactionToast, showSuccessTran
 
 // 合约地址配置（从部署文件读取）
 const CONTRACT_ADDRESSES: ContractAddresses = {
-  FHESubscriptionManager: '0xe8B243Da04B3360b205246A4F0d2ef812AB8E14d',
+  FHESubscriptionManager: '0xC20F9a77eA7299CC2823765Fc4729e6e44C35Db5',
   NFTFactory: '0xcB2EC254d95c337a82B0F10a6512579BB586C828'
 };
 
@@ -33,8 +33,27 @@ const uint8ArrayToHex = (array: Uint8Array): `0x${string}` => {
   return `0x${Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('')}` as `0x${string}`;
 };
 
-// 合约ABI - 这里只包含主要方法，实际使用时需要完整的ABI
+// 合约ABI - 包含错误定义和主要方法
 const FHE_SUBSCRIPTION_MANAGER_ABI = parseAbi([
+  // 错误定义
+  'error ChannelNotFound()',
+  'error NotChannelOwner()',
+  'error TopicNotFound()',
+  'error NotTopicCreator()',
+  'error TopicExpired()',
+  'error TopicNotExpired()',
+  'error NotInAllowlist()',
+  'error AlreadySubmitted()',
+  'error InvalidEndDate()',
+  'error NotSubscriptionOwner()',
+  'error SubscriptionExpired()',
+  'error ArrayLengthMismatch()',
+  'error ArrayTooLarge()',
+  'error EmptyArray()',
+  'error InvalidValueRange()',
+  'error AlreadyAccessed()',
+  'error TopicChannelMismatch()',
+
   // 读取方法
   'function getChannel(uint256 id) view returns ((uint256 channelId, string info, address owner, (uint8 tier, uint256 price, uint256 subscribers)[] tiers, uint256 tierCount, address nftContract, uint256 createdAt, uint256 lastPublishedAt, uint256[] topicIds) channel)',
   'function getChannelMaxId() view returns (uint256)',

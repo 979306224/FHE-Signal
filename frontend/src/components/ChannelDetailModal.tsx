@@ -1,5 +1,5 @@
 import { Modal, Typography, Space, Button, Card, Tag, Avatar, List, Empty, Spin, Toast, Form } from '@douyinfe/semi-ui';
-import { IconUser, IconCalendar, IconPlus } from '@douyinfe/semi-icons';
+import { IconUser, IconCalendar, IconPlus, IconRefresh } from '@douyinfe/semi-icons';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useWalletClient } from 'wagmi';
 import { readContract } from '@wagmi/core';
@@ -13,6 +13,7 @@ import { useFHE, FHEStatus } from '../FHE/fheContext';
 import { FHEStatusIndicator } from '../FHE/FHEStatusIndicator';
 import FHEProgressToast from './FHEProgressToast';
 import ChannelSubscribeModal from './ChannelSubscribeModal';
+import AllowlistModal from './AllowlistModal';
 import './ChannelDetailModal.less';
 
 const { Title, Text } = Typography;
@@ -134,6 +135,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
   const [subscriptionInfo, setSubscriptionInfo] = useState<SubscriptionNFT | null>(null);
   const [showCreateTopic, setShowCreateTopic] = useState(false);
   const [showSubmitSignal, setShowSubmitSignal] = useState(false);
+  const [showAllowlistModal, setShowAllowlistModal] = useState(false);
   const [selectedTopicId, setSelectedTopicId] = useState<bigint | null>(null);
   const [creatingTopic, setCreatingTopic] = useState(false);
   const [submittingSignal, setSubmittingSignal] = useState(false);
@@ -523,6 +525,18 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
     }
   }, [userAddress, selectedTopicId, submittingSignal, signalValue, fheReady, isWritePending, writeContractAsync, loadTopics]);
 
+  // 刷新频道数据
+  const handleRefresh = useCallback(async () => {
+    try {
+      Toast.info('🔄 正在刷新数据...');
+      await loadTopics();
+      Toast.success('✅ 数据刷新完成');
+    } catch (error) {
+      console.error('刷新数据失败:', error);
+      Toast.error('❌ 刷新数据失败');
+    }
+  }, [loadTopics]);
+
   // 点击话题提交信号
   const handleTopicClick = useCallback((topic: TopicWithIPFS) => {
     if (!isOwner && !isInAllowlist) {
@@ -655,9 +669,24 @@ console.log(topic,'topic')
               </Avatar>
 
               <div style={{ flex: 1 }}>
-                <Title heading={4} style={{ margin: 0, marginBottom: 8 }}>
-                  {ipfsData?.name || `频道 ${channel.channelId.toString()}`}
-                </Title>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <Title heading={4} style={{ margin: 0 }}>
+                    {ipfsData?.name || `频道 ${channel.channelId.toString()}`}
+                  </Title>
+                  <Button
+                    type="tertiary"
+                    size="small"
+                    icon={<IconRefresh />}
+                    onClick={handleRefresh}
+                    loading={loadingTopics}
+                    style={{ 
+                      padding: '4px 8px',
+                      minWidth: 'auto',
+                      height: 'auto'
+                    }}
+                    title="刷新数据"
+                  />
+                </div>
 
                 <Text type="secondary" style={{ marginBottom: 12, display: 'block' }}>
                   {ipfsData?.description || '暂无描述'}
@@ -704,6 +733,21 @@ console.log(topic,'topic')
                         }
                       </Tag>
                     </>
+                  )}
+
+                  {/* 拥有者管理按钮 */}
+                  {isOwner && (
+                    <div style={{ marginTop: 12 }}>
+                      <Button
+                        type="tertiary"
+                        size="small"
+                        icon={<IconUser />}
+                        onClick={() => setShowAllowlistModal(true)}
+                        style={{ marginRight: 8 }}
+                      >
+                        管理白名单
+                      </Button>
+                    </div>
                   )}
                 </Space>
 
@@ -1190,6 +1234,13 @@ console.log(topic,'topic')
         onComplete={() => {
           setShowFHEProgress(false);
         }}
+      />
+
+      {/* 白名单管理 Modal */}
+      <AllowlistModal
+        channelId={channel.channelId}
+        visible={showAllowlistModal}
+        onClose={() => setShowAllowlistModal(false)}
       />
     </Modal>
   );

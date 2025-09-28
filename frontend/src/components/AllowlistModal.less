@@ -1,0 +1,166 @@
+.allowlist-modal {
+  .loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  .error-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background-color: var(--semi-color-danger-light-1);
+    border: 1px solid var(--semi-color-danger);
+    border-radius: 6px;
+    margin-bottom: 16px;
+  }
+
+  .allowlist-content {
+    .allowlist-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 16px;
+
+      .header-info {
+        .semi-typography {
+          margin-bottom: 4px;
+        }
+      }
+    }
+
+    .empty-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px 20px;
+      background-color: var(--semi-color-fill-0);
+      border-radius: 6px;
+      border: 1px dashed var(--semi-color-border);
+    }
+  }
+
+  .add-users-form {
+    .form-tips {
+      margin-top: 16px;
+      padding: 12px;
+      background-color: var(--semi-color-fill-0);
+      border-radius: 6px;
+      border: 1px solid var(--semi-color-border);
+    }
+  }
+}
+
+/* 表格样式优化 */
+.allowlist-modal {
+  .semi-table {
+    .semi-table-thead {
+      .semi-table-cell {
+        background-color: var(--semi-color-fill-0);
+        font-weight: 600;
+      }
+    }
+
+    .semi-table-tbody {
+      .semi-table-row {
+        &:hover {
+          background-color: var(--semi-color-fill-1);
+        }
+      }
+    }
+  }
+}
+
+/* 按钮组样式 */
+.allowlist-modal {
+  .semi-space {
+    .semi-button {
+      &.semi-button-tertiary {
+        &:hover {
+          background-color: var(--semi-color-primary-light-1);
+          border-color: var(--semi-color-primary);
+        }
+      }
+    }
+  }
+}
+
+/* 标签样式 */
+.allowlist-modal {
+  .semi-tag {
+    &.semi-tag-blue {
+      background-color: var(--semi-color-primary-light-1);
+      color: var(--semi-color-primary);
+      border-color: var(--semi-color-primary-light-2);
+    }
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .allowlist-modal {
+    .allowlist-header {
+      flex-direction: column;
+      gap: 12px;
+      align-items: stretch;
+
+      .header-info {
+        text-align: center;
+      }
+    }
+
+    .semi-table {
+      font-size: 12px;
+    }
+  }
+}
+
+/* 深色主题适配 */
+body[theme-mode="dark"] {
+  .allowlist-modal {
+    .error-container {
+      background-color: var(--semi-color-danger-light-1);
+      border-color: var(--semi-color-danger);
+    }
+
+    .empty-container {
+      background-color: var(--semi-color-fill-0);
+      border-color: var(--semi-color-border);
+    }
+
+    .form-tips {
+      background-color: var(--semi-color-fill-0);
+      border-color: var(--semi-color-border);
+    }
+
+    .semi-table {
+      .semi-table-tbody {
+        .semi-table-row {
+          &:hover {
+            background-color: var(--semi-color-fill-1);
+          }
+        }
+      }
+    }
+  }
+}
+
+/* 模态框内容滚动 */
+.allowlist-modal {
+  .semi-modal-body {
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+}
+
+/* 分页样式 */
+.allowlist-modal {
+  .semi-pagination {
+    margin-top: 16px;
+    display: flex;
+    justify-content: center;
+  }
+}
