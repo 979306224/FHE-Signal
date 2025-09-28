@@ -245,6 +245,13 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
           return;
         }
         
+        // 前端验证信号值范围
+        if (numericValue < topic.minValue || numericValue > topic.maxValue) {
+          Toast.error(`信号值必须在 ${topic.minValue} - ${topic.maxValue} 范围内`);
+          setSubmittingSignal(false);
+          return;
+        }
+        
         // 检查是否已经提交过
         const hasSubmitted = await ContractService.hasSubmitted(selectedTopicId, userAddress);
         if (hasSubmitted) {
@@ -571,11 +578,17 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
           )}
         </Card>
 
+        <div style={{
+          height:'24px'
+        }}></div>
+
         {/* 创建话题弹窗 */}
         <Modal
           title="创建新话题"
           visible={showCreateTopic}
-          onCancel={() => setShowCreateTopic(false)}
+          onCancel={creatingTopic ? undefined : () => setShowCreateTopic(false)}
+          closeOnEsc={!creatingTopic}
+          maskClosable={!creatingTopic}
           footer={null}
           width={600}
         >
@@ -719,55 +732,129 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
             setSignalValue('');
           }}
           footer={null}
-          width={500}
+          width={600}
         >
-          {selectedTopicId && (
-            <div style={{ marginBottom: 16, padding: 12, backgroundColor: 'var(--semi-color-fill-0)', borderRadius: 6 }}>
-              <Text type="secondary" size="small">正在为以下话题提交信号：</Text>
-              <div style={{ marginTop: 4 }}>
-                {(() => {
-                  const topic = topics.find(t => t.topicId === selectedTopicId);
-                  return topic ? (
-                    <Text strong>
-                      {topic.ipfsData?.title || `话题 ${topic.topicId.toString()}`}
-                    </Text>
-                  ) : null;
-                })()}
-              </div>
-              <div style={{ marginTop: 8, padding: 8, backgroundColor: 'var(--semi-color-fill-0)', borderRadius: 4 }}>
-                <Space align="center">
-                  <Text type="secondary" size="small">FHE状态：</Text>
-                  <FHEStatusIndicator showLabel={true} size="small" />
+          {selectedTopicId && (() => {
+            const topic = topics.find(t => t.topicId === selectedTopicId);
+            if (!topic) return null;
+            
+            const isExpired = new Date(Number(topic.endDate) * 1000) <= new Date();
+            
+            return (
+              <Card style={{ marginBottom: 20, border: '1px solid var(--semi-color-border)' }}>
+                <div style={{ marginBottom: 12 }}>
+                  <Title heading={5} style={{ margin: 0, marginBottom: 8 }}>
+                    {topic.ipfsData?.title || `话题 ${topic.topicId.toString()}`}
+                  </Title>
+                  <Text type="secondary" style={{ marginBottom: 12, display: 'block' }}>
+                    {topic.ipfsData?.description || '暂无描述'}
+                  </Text>
+                </div>
+                
+                <Space wrap style={{ marginBottom: 12 }}>
+                  <Tag size="small" color="cyan">
+                    ID: {topic.topicId.toString()}
+                  </Tag>
+                  <Tag size="small" color={isExpired ? 'red' : 'green'}>
+                    {isExpired ? '已结束' : '进行中'}
+                  </Tag>
+                  <Tag size="small" color="blue">
+                    提交数: {topic.submissionCount.toString()}
+                  </Tag>
                 </Space>
-              </div>
-            </div>
-          )}
+                
+                <div style={{ 
+                  padding: 12, 
+                  backgroundColor: 'var(--semi-color-fill-0)', 
+                  borderRadius: 6,
+                  marginBottom: 12
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text type="secondary" size="small">信号值范围：</Text>
+                      <Text size="small" strong>
+                        {topic.minValue} - {topic.maxValue}
+                      </Text>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text type="secondary" size="small">默认值：</Text>
+                      <Text size="small" strong>
+                        {topic.defaultValue}
+                      </Text>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text type="secondary" size="small">截止时间：</Text>
+                      <Text size="small" strong>
+                        {new Date(Number(topic.endDate) * 1000).toLocaleString('zh-CN')}
+                      </Text>
+                    </div>
+                  </div>
+                </div>
+                
+                <div style={{ 
+                  padding: 8, 
+                  backgroundColor: 'var(--semi-color-fill-1)', 
+                  borderRadius: 4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <Space align="center">
+                    <Text type="secondary" size="small">FHE状态：</Text>
+                    <FHEStatusIndicator showLabel={true} size="small" />
+                  </Space>
+                  {!fheReady && (
+                    <Text type="tertiary" size="small">
+                      请等待FHE初始化完成
+                    </Text>
+                  )}
+                </div>
+              </Card>
+            );
+          })()}
           
           <Form onSubmit={handleSubmitSignal}>
-            <Form.InputNumber
-              field="value"
-              label="信号值"
-              placeholder="请输入正整数"
-              rules={[
-                { required: true, message: '请输入信号值' },
-                { 
-                  validator: (_, value) => {
-                    if (value && (value <= 0 || !Number.isInteger(value))) {
-                      return new Error('请输入正整数');
+            {(() => {
+              const topic = selectedTopicId ? topics.find(t => t.topicId === selectedTopicId) : null;
+              if (!topic) return null;
+              
+              return (
+                <Form.InputNumber
+                  field="value"
+                  label="信号值"
+                  placeholder={`请输入 ${topic.minValue} - ${topic.maxValue} 之间的整数`}
+                  rules={[
+                    { required: true, message: '请输入信号值' },
+                    { 
+                      validator: (_, value) => {
+                        if (!value) return true;
+                        
+                        const numValue = Number(value);
+                        if (!Number.isInteger(numValue)) {
+                          return new Error('请输入整数');
+                        }
+                        
+                        if (numValue < topic.minValue || numValue > topic.maxValue) {
+                          return new Error(`请输入 ${topic.minValue} - ${topic.maxValue} 之间的整数`);
+                        }
+                        
+                        return true;
+                      }
                     }
-                    return true;
-                  }
-                }
-              ]}
-              style={{ width: '100%' }}
-              min={1}
-              step={1}
-              precision={0}
-              onChange={(value) => setSignalValue(value ? value.toString() : '')}
-            />
+                  ]}
+                  style={{ width: '100%' }}
+                  min={topic.minValue}
+                  max={topic.maxValue}
+                  step={1}
+                  precision={0}
+                  initValue={topic.defaultValue}
+                  onChange={(value) => setSignalValue(value ? value.toString() : '')}
+                />
+              );
+            })()}
             <div style={{ marginTop: -8, marginBottom: 16 }}>
               <Text type="tertiary" size="small">
-                请输入符合topic设定的正整数，超出范围将自动调整
+                请输入符合话题设定的整数，超出范围将自动调整为默认值
               </Text>
             </div>
             
@@ -792,6 +879,10 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               </Button>
             </div>
           </Form>
+
+          <div style={{
+          height:'24px'
+        }}></div>
         </Modal>
       </div>
     </Modal>

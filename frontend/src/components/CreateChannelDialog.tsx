@@ -120,7 +120,7 @@ export default function CreateChannelDialog({ onSuccess }: CreateChannelDialogPr
         const { logoFile, ...rest } = values;
         const submitPayload = {
             ...rest,
-            logo: values.logo
+            logo: values.logo || '' // 如果没有logo，使用空字符串
         };
         console.log(submitPayload, 'submitPayload');
         
@@ -222,7 +222,7 @@ export default function CreateChannelDialog({ onSuccess }: CreateChannelDialogPr
                 />
                 <Form.Upload
                     field="logoFile"
-                    label="频道 Logo"
+                    label="频道 Logo (可选)"
                     action=""
                     accept="image/*"
                     limit={1}
@@ -232,7 +232,6 @@ export default function CreateChannelDialog({ onSuccess }: CreateChannelDialogPr
                     beforeUpload={handleLogoBeforeUpload}
                     {...uploadAction}
                     dragIcon={<IconUpload style={{ fontSize: 24 }} />}
-                    rules={[{ required: true, message: '请上传频道 Logo' }]}
                     onRemove={() => {
                         formApiRef.current?.setValue('logoFile', []);
                         formApiRef.current?.setValue('logo', '');

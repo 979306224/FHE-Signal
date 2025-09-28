@@ -83,9 +83,7 @@ export function ChannelList() {
   }, [loading]);
 
   const handleViewDetails = useCallback((channelId: bigint) => {
-    console.log('查看频道详情:', channelId.toString());
-    // TODO: 导航到频道详情页面
-    Toast.info(`查看频道 ${channelId.toString()} 的详情`);
+
   }, []);
 
   const handleSubscribe = useCallback((channelId: bigint) => {
