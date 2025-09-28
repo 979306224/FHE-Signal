@@ -1,8 +1,11 @@
 import { Modal, Typography, Space, Button, Card, Tag, Avatar, List, Empty, Spin, Toast, Form } from '@douyinfe/semi-ui';
 import { IconUser, IconCalendar, IconPlus } from '@douyinfe/semi-icons';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import type { Channel, Topic } from '../types/contracts';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useWalletClient } from 'wagmi';
+import { readContract } from '@wagmi/core';
+import { parseAbi, type Address } from 'viem';
+import { wagmiConfig } from '../config/wallet';
+import type { Channel, Topic, SubscriptionNFT } from '../types/contracts';
 import type { IPFSChannel } from '../types/ipfs';
 import { ContractService, PinataService } from '../services';
 import { fheService } from '../FHE/fheService';
@@ -13,6 +16,86 @@ import ChannelSubscribeModal from './ChannelSubscribeModal';
 import './ChannelDetailModal.less';
 
 const { Title, Text } = Typography;
+
+// 档位数字到文字的映射
+const TIER_NAMES: Record<number, string> = {
+  0: '1天',
+  1: '1个月', 
+  2: '3个月',
+  3: '6个月',
+  4: '1年'
+};
+
+// 档位转换函数
+const getTierName = (tier: number): string => {
+  return TIER_NAMES[tier] || `档位${tier}`;
+};
+
+// NFT合约ABI
+const CHANNEL_NFT_ABI = parseAbi([
+  'function getSubscription(uint256 tokenId) view returns ((uint256 channelId, uint256 expiresAt, uint8 tier, address subscriber, uint256 mintedAt) subscription)',
+  'function isSubscriptionValid(uint256 tokenId) view returns (bool)',
+  'function getUserValidSubscriptions(address user) view returns (uint256[])',
+  'function balanceOf(address owner) view returns (uint256)',
+  'function ownerOf(uint256 tokenId) view returns (address)'
+]);
+
+// 检查用户是否有有效订阅
+async function checkUserSubscription(nftContractAddress: string, userAddress: string, channelId: bigint): Promise<{
+  hasValidSubscription: boolean;
+  subscriptionInfo?: SubscriptionNFT;
+}> {
+  try {
+    // 获取用户的有效订阅NFT tokenIds
+    const tokenIds = await readContract(wagmiConfig, {
+      address: nftContractAddress as Address,
+      abi: CHANNEL_NFT_ABI,
+      functionName: 'getUserValidSubscriptions',
+      args: [userAddress as Address]
+    }) as bigint[];
+
+    console.log('User valid subscriptions tokenIds:', tokenIds);
+
+    // 检查每个tokenId是否属于当前频道且有效
+    for (const tokenId of tokenIds) {
+      try {
+        // 获取订阅信息
+        const subscription = await readContract(wagmiConfig, {
+          address: nftContractAddress as Address,
+          abi: CHANNEL_NFT_ABI,
+          functionName: 'getSubscription',
+          args: [tokenId]
+        }) as unknown as SubscriptionNFT;
+
+        // 检查是否属于当前频道
+        if (subscription.channelId === channelId) {
+          // 检查订阅是否仍然有效（未过期）
+          const isValid = await readContract(wagmiConfig, {
+            address: nftContractAddress as Address,
+            abi: CHANNEL_NFT_ABI,
+            functionName: 'isSubscriptionValid',
+            args: [tokenId]
+          }) as boolean;
+
+          if (isValid) {
+            console.log(`Found valid subscription for channel ${channelId.toString()}, tokenId: ${tokenId.toString()}`);
+            return {
+              hasValidSubscription: true,
+              subscriptionInfo: subscription
+            };
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to check subscription for tokenId', tokenId.toString(), ':', err);
+      }
+    }
+
+    return { hasValidSubscription: false };
+  } catch (err) {
+    console.error('Failed to check user subscription:', err);
+    return { hasValidSubscription: false };
+  }
+}
 
 interface ChannelDetailModalProps {
   visible: boolean;
@@ -30,6 +113,7 @@ interface TopicWithIPFS extends Topic {
 
 export default function ChannelDetailModal({ visible, onClose, channel, ipfsData }: ChannelDetailModalProps) {
   const { address: userAddress, isConnected } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const { status: fheStatus, isReady } = useFHE();
   const fheReady = fheStatus === FHEStatus.READY && isReady();
 
@@ -46,6 +130,8 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
   const [loadingTopics, setLoadingTopics] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [isInAllowlist, setIsInAllowlist] = useState(false);
+  const [hasValidSubscription, setHasValidSubscription] = useState(false);
+  const [subscriptionInfo, setSubscriptionInfo] = useState<SubscriptionNFT | null>(null);
   const [showCreateTopic, setShowCreateTopic] = useState(false);
   const [showSubmitSignal, setShowSubmitSignal] = useState(false);
   const [selectedTopicId, setSelectedTopicId] = useState<bigint | null>(null);
@@ -53,6 +139,10 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
   const [submittingSignal, setSubmittingSignal] = useState(false);
   const [signalValue, setSignalValue] = useState<string>('');
   const [formApiRef, setFormApiRef] = useState<any>(null);
+  
+  // 解密相关状态
+  const [decryptedResults, setDecryptedResults] = useState<Map<bigint, any>>(new Map());
+  const [decryptingTopics, setDecryptingTopics] = useState<Set<bigint>>(new Set());
 
   // FHE 进度状态
   const [showFHEProgress, setShowFHEProgress] = useState(false);
@@ -96,11 +186,13 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
     }
   }, [pendingTxHash, isConfirming]);
 
-  // 检查用户权限
+  // 检查用户权限和订阅状态
   useEffect(() => {
     if (!userAddress || !isConnected) {
       setIsOwner(false);
       setIsInAllowlist(false);
+      setHasValidSubscription(false);
+      setSubscriptionInfo(null);
       return;
     }
 
@@ -118,6 +210,17 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
           setIsInAllowlist(allowlistStatus);
         } else {
           setIsInAllowlist(true); // 拥有者默认在白名单中
+        }
+
+        // 检查是否有有效订阅
+        if (channel.nftContract) {
+          const subscriptionResult = await checkUserSubscription(channel.nftContract, userAddress, channel.channelId);
+          setHasValidSubscription(subscriptionResult.hasValidSubscription);
+          setSubscriptionInfo(subscriptionResult.subscriptionInfo || null);
+          console.log('Subscription check result:', subscriptionResult);
+        } else {
+          setHasValidSubscription(false);
+          setSubscriptionInfo(null);
         }
       } catch (error) {
         console.error('检查用户权限失败:', error);
@@ -423,7 +526,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
   // 点击话题提交信号
   const handleTopicClick = useCallback((topic: TopicWithIPFS) => {
     if (!isOwner && !isInAllowlist) {
-      Toast.warning('您没有权限提交信号');
+      Toast.warning('您没有权限提交信号，需要加入白名单');
       return;
     }
 
@@ -442,6 +545,64 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
     setSelectedTopicId(topic.topicId);
     setShowSubmitSignal(true);
   }, [isOwner, isInAllowlist, fheReady]);
+
+  // 解密话题结果
+  const handleDecryptTopic = useCallback(async (topicId: bigint) => {
+    if (!userAddress || !fheReady || !walletClient || (!isOwner && !hasValidSubscription)) {
+      Toast.warning('您没有权限解密话题结果');
+      return;
+    }
+
+    try {
+      setDecryptingTopics(prev => new Set(prev).add(topicId));
+      
+      // 获取话题信息
+      const topic = await ContractService.getTopic(topicId);
+console.log(topic,'topic')
+      // 检查是否有提交的信号
+      if (topic.submissionCount === 0n) {
+        Toast.warning('该话题暂无提交的信号');
+        return;
+      }
+
+      // 使用FHE解密
+      const contractAddresses = ContractService.getContractAddresses();
+      const contractAddress = contractAddresses.FHESubscriptionManager;
+      
+      // 从合约获取真实的加密句柄 - 只解密平均值
+      const handles = [
+        topic.average             // 平均值句柄 (bytes32)
+      ];
+      
+      // 使用FHEService进行解密
+      const results = await fheService.decryptMultipleValuesWithWalletClient(
+        handles,
+        contractAddress,
+        walletClient
+      );
+
+      // 存储解密结果
+      setDecryptedResults(prev => {
+        const newMap = new Map(prev);
+        newMap.set(topicId, {
+          average: results[handles[0]] || 0,
+          decryptedAt: Date.now()
+        });
+        return newMap;
+      });
+
+      Toast.success('解密成功！');
+    } catch (error) {
+      console.error('解密失败:', error);
+      Toast.error('解密失败，请重试');
+    } finally {
+      setDecryptingTopics(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(topicId);
+        return newSet;
+      });
+    }
+  }, [userAddress, fheReady, walletClient, isOwner, hasValidSubscription]);
 
   const tierInfo = useMemo(() => {
     if (!channel.tiers || channel.tiers.length === 0) {
@@ -524,6 +685,26 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                   <Tag color="purple">
                     ID: {channel.channelId.toString()}
                   </Tag>
+
+                  {/* 用户状态显示 */}
+                  {isConnected && (
+                    <>
+                      {/* 拥有者状态 */}
+                      {isOwner && (
+                        <Tag color="red">
+                          👑 频道拥有者
+                        </Tag>
+                      )}
+                      
+                      {/* 订阅状态 */}
+                      <Tag color={hasValidSubscription ? "green" : "grey"}>
+                        {hasValidSubscription ? 
+                          `✓ 已订阅${subscriptionInfo ? ` (${getTierName(Number(subscriptionInfo.tier))})` : ''}` : 
+                          "未订阅"
+                        }
+                      </Tag>
+                    </>
+                  )}
                 </Space>
 
                 <div style={{ marginTop: 12 }}>
@@ -632,6 +813,49 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                           截止: {new Date(Number(topic.endDate) * 1000).toLocaleString('zh-CN')}
                         </Text>
                       </Space>
+
+                      {/* 加密结果显示区域 */}
+                      {topic.submissionCount > 0n && (
+                        <div style={{ 
+                          marginTop: 12, 
+                          padding: 12, 
+                          backgroundColor: 'var(--semi-color-fill-0)', 
+                          borderRadius: 6,
+                          border: '1px solid var(--semi-color-border)'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <Text size="small" strong>加密结果:</Text>
+                            {(isOwner || hasValidSubscription) && (
+                              <Button
+                                size="small"
+                                type="primary"
+                                loading={decryptingTopics.has(topic.topicId)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDecryptTopic(topic.topicId);
+                                }}
+                                disabled={!fheReady}
+                              >
+                                {decryptingTopics.has(topic.topicId) ? '解密中...' : '解密'}
+                              </Button>
+                            )}
+                          </div>
+                          
+                          {decryptedResults.has(topic.topicId) ? (
+                            <div>
+                              <Text size="small" type="secondary">
+                                平均值: {decryptedResults.get(topic.topicId)?.average || '***'}
+                              </Text>
+                            </div>
+                          ) : (
+                            <div>
+                              <Text size="small" type="tertiary">
+                                平均值: ***
+                              </Text>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </List.Item>
                 );

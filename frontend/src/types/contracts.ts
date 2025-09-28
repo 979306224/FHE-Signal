@@ -42,7 +42,9 @@ export interface Topic {
   minValue: number;
   maxValue: number;
   defaultValue: number;
-  // 注意：totalWeightedValue和average是FHE加密的，无法直接读取
+  // FHE加密的句柄 (bytes32)
+  totalWeightedValue: string;  // 加权总值句柄
+  average: string;             // 平均值句柄
   totalWeight: bigint;
   submissionCount: bigint;
   signalIds: bigint[];

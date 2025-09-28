@@ -158,6 +158,9 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         euint64 zeroValue = FHE.asEuint64(0);
         // 为合约地址授予零值的访问权限
         FHE.allow(zeroValue, address(this));
+        // 赋予频道用有人权限
+        FHE.allow(zeroValue,channel.owner);
+
         
         Topic storage topic = _topics[newTopicId];
         topic.topicId = newTopicId;
