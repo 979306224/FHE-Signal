@@ -24,7 +24,7 @@ import { showErrorTransactionToast, showPendingTransactionToast, showSuccessTran
 
 // Contract address configuration (read from deployment file)
 const CONTRACT_ADDRESSES: ContractAddresses = {
-  FHESubscriptionManager: '0xED08F918E3fA2572A77Cb69B71C69FDcC73f25eE',
+  FHESubscriptionManager: '0x2adB5f093E8e3A0950Cb60A226E183f11803CD85',
   NFTFactory: '0xcB2EC254d95c337a82B0F10a6512579BB586C828'
 };
 

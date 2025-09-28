@@ -199,7 +199,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
   }, [pendingTxHash, isConfirming]);
 
   // Check user permissions and subscription status
-  useEffect(() => {
+  const checkPermissions = useCallback(async () => {
     if (!userAddress || !isConnected) {
       setIsOwner(false);
       setIsInAllowlist(false);
@@ -208,41 +208,41 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       return;
     }
 
-    const checkPermissions = async () => {
-      try {
-        // Check if is channel owner
-        const ownerStatus = currentChannel.owner.toLowerCase() === userAddress.toLowerCase();
-        setIsOwner(ownerStatus);
+    try {
+      // Check if is channel owner
+      const ownerStatus = currentChannel.owner.toLowerCase() === userAddress.toLowerCase();
+      setIsOwner(ownerStatus);
 
-        console.log('currentChannel', currentChannel);
+      console.log('currentChannel', currentChannel);
 
-        // Check if in allowlist
-        if (!ownerStatus) {
-          const allowlistStatus = await ContractService.isInAllowlist(currentChannel.channelId, userAddress);
-          setIsInAllowlist(allowlistStatus);
-        } else {
-          setIsInAllowlist(true); // Owner is in allowlist by default
-        }
-
-        // Check if has valid subscription
-        if (currentChannel.nftContract) {
-          const subscriptionResult = await checkUserSubscription(currentChannel.nftContract, userAddress, currentChannel.channelId);
-          setHasValidSubscription(subscriptionResult.hasValidSubscription);
-          setSubscriptionInfo(subscriptionResult.subscriptionInfo || null);
-          console.log('Subscription check result:', subscriptionResult);
-        } else {
-          setHasValidSubscription(false);
-          setSubscriptionInfo(null);
-        }
-      } catch (error) {
-        console.error('Failed to check user permissions:', error);
+      // Check if in allowlist
+      if (!ownerStatus) {
+        const allowlistStatus = await ContractService.isInAllowlist(currentChannel.channelId, userAddress);
+        setIsInAllowlist(allowlistStatus);
+      } else {
+        setIsInAllowlist(true); // Owner is in allowlist by default
       }
-    };
 
+      // Check if has valid subscription
+      if (currentChannel.nftContract) {
+        const subscriptionResult = await checkUserSubscription(currentChannel.nftContract, userAddress, currentChannel.channelId);
+        setHasValidSubscription(subscriptionResult.hasValidSubscription);
+        setSubscriptionInfo(subscriptionResult.subscriptionInfo || null);
+        console.log('Subscription check result:', subscriptionResult);
+      } else {
+        setHasValidSubscription(false);
+        setSubscriptionInfo(null);
+      }
+    } catch (error) {
+      console.error('Failed to check user permissions:', error);
+    }
+  }, [currentChannel, userAddress, isConnected]);
+
+  useEffect(() => {
     if (visible) {
       checkPermissions();
     }
-  }, [currentChannel, userAddress, isConnected, visible]);
+  }, [visible, checkPermissions]);
 
   // Refresh channel data from contract
   const refreshChannel = useCallback(async () => {
@@ -257,6 +257,35 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       throw error;
     }
   }, [currentChannel.channelId]);
+
+  // Refresh subscription status and topic access status
+  const refreshSubscriptionAndAccessStatus = useCallback(async () => {
+    try {
+      console.log('Refreshing subscription and access status...');
+      // Refresh user permissions and subscription status
+      await checkPermissions();
+
+      // Refresh topic access status for all topics
+      if (userAddress && isConnected && topics.length > 0) {
+        const accessStatusMap = new Map<bigint, boolean>();
+        await Promise.all(
+          topics.map(async (topic) => {
+            try {
+              const hasAccess = await ContractService.hasAccessedTopic(topic.topicId, userAddress);
+              accessStatusMap.set(topic.topicId, hasAccess);
+            } catch (error) {
+              console.warn(`Failed to check access for topic ${topic.topicId}:`, error);
+              accessStatusMap.set(topic.topicId, false);
+            }
+          })
+        );
+        setTopicAccessStatus(accessStatusMap);
+      }
+      console.log('Subscription and access status refreshed');
+    } catch (error) {
+      console.error('Failed to refresh subscription and access status:', error);
+    }
+  }, [checkPermissions, userAddress, isConnected, topics]);
 
   // Load all topics for the channel
   const loadTopics = useCallback(async () => {
@@ -884,7 +913,10 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               </div>
             </div>
             <div>
-              <ChannelSubscribeModal channelId={currentChannel.channelId} />
+              <ChannelSubscribeModal
+                channelId={currentChannel.channelId}
+                onSubscribeSuccess={refreshSubscriptionAndAccessStatus}
+              />
             </div>
           </div>
 
