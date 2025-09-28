@@ -1,7 +1,7 @@
 /**
- * FHE（全同态加密）集成服务
+ * FHE (Fully Homomorphic Encryption) Integration Service
  * 
- * 本文件提供了与ZAMA FHE库的集成，用于加密和解密数据
+ * This file provides integration with ZAMA FHE library for encrypting and decrypting data
  */
 
 import { BrowserProvider } from 'ethers';
@@ -9,7 +9,7 @@ import { initSDK, createInstance, SepoliaConfig } from '@zama-fhe/relayer-sdk/bu
 import type { FhevmInstance } from '@zama-fhe/relayer-sdk/bundle';
 import contractService from "./contractService"
 /**
- * FHE服务类
+ * FHE Service Class
  */
 export class FHEService {
   private static instance: FHEService;
@@ -19,7 +19,7 @@ export class FHEService {
   private constructor() { }
 
   /**
-   * 获取FHE服务单例
+   * Get FHE service singleton
    */
   static getInstance(): FHEService {
     if (!FHEService.instance) {
@@ -29,7 +29,7 @@ export class FHEService {
   }
 
   /**
-   * 初始化FHE实例
+   * Initialize FHE instance
    */
   async initialize(provider: BrowserProvider): Promise<void> {
     try {
@@ -37,27 +37,27 @@ export class FHEService {
         return;
       }
 
-      console.log('正在初始化FHE...');
+      console.log('Initializing FHE...');
 
-      // 初始化FHEVM
+      // Initialize FHEVM
       await initSDK();
 
-      // 获取网络信息
+      // Get network info
       const network = await provider.getNetwork();
       const chainId = Number(network.chainId);
 
-      // 创建FHE实例
+      // Create FHE instance
       this.fhevmInstance = await createInstance({
         ...SepoliaConfig,
         network: window.ethereum
       });
 
       this.isInitialized = true;
-      console.log('FHE初始化成功');
+      console.log('FHE initialization successful');
 
     } catch (error) {
-      console.error('FHE初始化失败:', error);
-      throw new Error('FHE初始化失败: ' + (error instanceof Error ? error.message : '未知错误'));
+      console.error('FHE initialization failed:', error);
+      throw new Error('FHE initialization failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   }
   /** Create encrypted input instance */
@@ -67,17 +67,17 @@ export class FHEService {
   }
 
   /**
-   * 获取FHE实例
+   * Get FHE instance
    */
   getFhevmInstance(): FhevmInstance {
     if (!this.fhevmInstance || !this.isInitialized) {
-      throw new Error('FHE尚未初始化，请先调用initialize()');
+      throw new Error('FHE not initialized yet, please call initialize() first');
     }
     return this.fhevmInstance;
   }
 
   /**
-   * 检查是否已初始化
+   * Check if initialized
    */
   isReady(): boolean {
     return this.isInitialized && this.fhevmInstance !== null;
@@ -86,21 +86,21 @@ export class FHEService {
 
 
   /**
-   * 重置FHE实例
+   * Reset FHE instance
    */
   reset(): void {
     this.fhevmInstance = null;
     this.isInitialized = false;
-    console.log('FHE实例已重置');
+    console.log('FHE instance has been reset');
   }
 }
 
 /**
- * FHE辅助函数
+ * FHE Helper Functions
  */
 export const FHEHelpers = {
   /**
-   * 创建并初始化FHE服务
+   * Create and initialize FHE service
    */
   async createAndInitialize(provider: BrowserProvider): Promise<FHEService> {
     const service = FHEService.getInstance();
@@ -110,7 +110,7 @@ export const FHEHelpers = {
 
 
   /**
-   * 检查FHE服务状态
+   * Check FHE service status
    */
   getStatus(): {
     isReady: boolean;
@@ -121,10 +121,10 @@ export const FHEHelpers = {
 
     return {
       isReady,
-      message: isReady ? 'FHE服务已就绪' : 'FHE服务尚未初始化'
+      message: isReady ? 'FHE service ready' : 'FHE service not initialized yet'
     };
   }
 };
 
-// 导出默认实例
+// Export default instance
 export default FHEService;

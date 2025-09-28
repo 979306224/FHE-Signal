@@ -7,32 +7,32 @@ import {DurationTier} from "./common.sol";
 
 /**
  * @title ChannelNFT
- * @dev 订阅频道的NFT合约，每个NFT代表一个订阅记录，包含过期时间戳
+ * @dev Channel subscription NFT contract, each NFT represents a subscription record with expiration timestamp
  */
 contract ChannelNFT is ERC721, Ownable {
     
-    // NFT元数据结构
+    // NFT metadata structure
     struct SubscriptionNFT {
-        uint256 channelId;      // 频道ID
-        uint256 expiresAt;      // 过期时间戳
-        DurationTier tier;      // 订阅等级
-        address subscriber;     // 订阅者地址
-        uint256 mintedAt;       // 铸造时间
+        uint256 channelId;      // Channel ID
+        uint256 expiresAt;      // Expiration timestamp
+        DurationTier tier;      // Subscription tier
+        address subscriber;     // Subscriber address
+        uint256 mintedAt;       // Minting time
     }
     
-    // 存储NFT元数据
+    // Store NFT metadata
     mapping(uint256 => SubscriptionNFT) private _subscriptions;
     
-    // 下一个NFT ID
+    // Next NFT ID
     uint256 private _nextTokenId = 1;
     
-    // 频道ID
+    // Channel ID
     uint256 public immutable channelId;
     
-    // 频道信息
+    // Channel information
     string public channelInfo;
     
-    // 事件
+    // Events
     event SubscriptionMinted(
         uint256 indexed tokenId,
         uint256 indexed channelId,
@@ -48,10 +48,10 @@ contract ChannelNFT is ERC721, Ownable {
     error InvalidSubscriptionData();
     
     /**
-     * @dev 构造函数
-     * @param _channelId 频道ID
-     * @param _channelInfo 频道信息
-     * @param _owner 合约所有者（通常是NFT工厂）
+     * @dev Constructor
+     * @param _channelId Channel ID
+     * @param _channelInfo Channel information
+     * @param _owner Contract owner (usually NFT factory)
      */
     constructor(
         uint256 _channelId,
@@ -66,11 +66,11 @@ contract ChannelNFT is ERC721, Ownable {
     }
     
     /**
-     * @dev 铸造订阅NFT
-     * @param to 接收者地址
-     * @param tier 订阅等级
-     * @param duration 订阅时长（秒）
-     * @return tokenId 新铸造的NFT ID
+     * @dev Mint subscription NFT
+     * @param to Recipient address
+     * @param tier Subscription tier
+     * @param duration Subscription duration (seconds)
+     * @return tokenId ID of newly minted NFT
      */
     function mintSubscription(
         address to,
@@ -83,7 +83,7 @@ contract ChannelNFT is ERC721, Ownable {
         uint256 tokenId = _nextTokenId++;
         uint256 expiresAt = block.timestamp + duration;
         
-        // 存储订阅元数据
+        // Store subscription metadata
         _subscriptions[tokenId] = SubscriptionNFT({
             channelId: channelId,
             expiresAt: expiresAt,
@@ -92,7 +92,7 @@ contract ChannelNFT is ERC721, Ownable {
             mintedAt: block.timestamp
         });
         
-        // 铸造NFT
+        // Mint NFT
         _safeMint(to, tokenId);
         
         emit SubscriptionMinted(tokenId, channelId, to, tier, expiresAt);
@@ -100,9 +100,9 @@ contract ChannelNFT is ERC721, Ownable {
     }
     
     /**
-     * @dev 获取订阅信息
+     * @dev Get subscription information
      * @param tokenId NFT ID
-     * @return subscription 订阅信息
+     * @return subscription Subscription information
      */
     function getSubscription(uint256 tokenId) external view returns (SubscriptionNFT memory) {
         if (!_exists(tokenId)) revert InvalidSubscriptionData();
@@ -110,9 +110,9 @@ contract ChannelNFT is ERC721, Ownable {
     }
     
     /**
-     * @dev 检查订阅是否有效（未过期）
+     * @dev Check if subscription is valid (not expired)
      * @param tokenId NFT ID
-     * @return 是否有效
+     * @return Whether valid
      */
     function isSubscriptionValid(uint256 tokenId) public view returns (bool) {
         if (!_exists(tokenId)) return false;
@@ -120,9 +120,9 @@ contract ChannelNFT is ERC721, Ownable {
     }
     
     /**
-     * @dev 获取订阅剩余时间
+     * @dev Get subscription remaining time
      * @param tokenId NFT ID
-     * @return 剩余秒数，如果已过期返回0
+     * @return Remaining seconds, returns 0 if expired
      */
     function getTimeRemaining(uint256 tokenId) external view returns (uint256) {
         if (!_exists(tokenId)) return 0;
@@ -135,9 +135,9 @@ contract ChannelNFT is ERC721, Ownable {
     }
     
     /**
-     * @dev 批量检查NFT是否过期
-     * @param tokenIds NFT ID数组
-     * @return expired 过期状态数组
+     * @dev Batch check if NFTs are expired
+     * @param tokenIds Array of NFT IDs
+     * @return expired Array of expiration status
      */
     function batchCheckExpired(uint256[] calldata tokenIds) external view returns (bool[] memory expired) {
         expired = new bool[](tokenIds.length);
@@ -147,16 +147,16 @@ contract ChannelNFT is ERC721, Ownable {
     }
     
     /**
-     * @dev 获取用户所有的有效订阅
-     * @param user 用户地址
-     * @return validTokens 有效的token ID数组
+     * @dev Get all valid subscriptions of user
+     * @param user User address
+     * @return validTokens Array of valid token IDs
      */
     function getUserValidSubscriptions(address user) external view returns (uint256[] memory validTokens) {
         uint256 balance = balanceOf(user);
         uint256[] memory allTokens = new uint256[](balance);
         uint256 validCount = 0;
         
-        // 获取用户所有NFT
+        // Get all user NFTs
         for (uint256 i = 0; i < balance; i++) {
             uint256 tokenId = tokenOfOwnerByIndex(user, i);
             if (isSubscriptionValid(tokenId)) {
@@ -165,7 +165,7 @@ contract ChannelNFT is ERC721, Ownable {
             }
         }
         
-        // 创建正确大小的数组
+        // Create correctly sized array
         validTokens = new uint256[](validCount);
         for (uint256 i = 0; i < validCount; i++) {
             validTokens[i] = allTokens[i];
@@ -173,7 +173,7 @@ contract ChannelNFT is ERC721, Ownable {
     }
     
     /**
-     * @dev 重写transfer函数，增加过期检查
+     * @dev Override transfer function, add expiration check
      */
     function transferFrom(address from, address to, uint256 tokenId) public override {
         if (!isSubscriptionValid(tokenId)) {
@@ -184,7 +184,7 @@ contract ChannelNFT is ERC721, Ownable {
     }
     
     /**
-     * @dev 重写safeTransferFrom函数，增加过期检查
+     * @dev Override safeTransferFrom function, add expiration check
      */
     function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public override {
         if (!isSubscriptionValid(tokenId)) {
@@ -195,14 +195,14 @@ contract ChannelNFT is ERC721, Ownable {
     }
     
     /**
-     * @dev 检查NFT是否存在
+     * @dev Check if NFT exists
      */
     function _exists(uint256 tokenId) internal view returns (bool) {
         return _ownerOf(tokenId) != address(0);
     }
     
     /**
-     * @dev 将数字转换为字符串
+     * @dev Convert number to string
      */
     function _toString(uint256 value) internal pure returns (string memory) {
         if (value == 0) {
@@ -224,7 +224,7 @@ contract ChannelNFT is ERC721, Ownable {
     }
     
     /**
-     * @dev 实现ERC721Enumerable接口中的tokenOfOwnerByIndex
+     * @dev Implement tokenOfOwnerByIndex from ERC721Enumerable interface
      */
     function tokenOfOwnerByIndex(address owner, uint256 index) public view returns (uint256) {
         if (index >= balanceOf(owner)) revert InvalidSubscriptionData();

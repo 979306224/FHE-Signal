@@ -3,7 +3,7 @@ import { FHESubscriptionManager, NFTFactory } from "../types";
 import { expect } from "chai";
 import { deployFixture, getSigners, DurationTier, type Signers } from "./test-utils";
 
-describe("FHESubscriptionManager - Allowlist管理功能", function () {
+describe("FHESubscriptionManager - Allowlist Management Features", function () {
   let signers: Signers;
   let subscriptionManager: FHESubscriptionManager;
   let subscriptionManagerAddress: string;
@@ -16,9 +16,9 @@ describe("FHESubscriptionManager - Allowlist管理功能", function () {
   });
 
   beforeEach(async () => {
-    // 检查是否在FHEVM模拟环境中运行
+    // Check if running in FHEVM mock environment
     if (!fhevm.isMock) {
-      throw new Error(`此测试套件只能在FHEVM模拟环境中运行`);
+      throw new Error(`This test suite can only run in FHEVM mock environment`);
     }
     ({ 
       subscriptionManager, 
@@ -27,41 +27,41 @@ describe("FHESubscriptionManager - Allowlist管理功能", function () {
       nftFactoryAddress
     } = await deployFixture());
 
-    // 创建测试频道
+    // Create test channel
     const tiers = [{ tier: DurationTier.Month, price: ethers.parseEther("0.1"), subscribers: 0 }];
-    await subscriptionManager.connect(signers.alice).createChannel("测试频道", tiers);
+    await subscriptionManager.connect(signers.alice).createChannel("Test Channel", tiers);
     channelId = 1;
   });
 
-  it("应该成功批量添加用户到allowlist", async function () {
+  it("Should successfully batch add users to allowlist", async function () {
     const users = [signers.bob.address, signers.charlie.address, signers.david.address];
     const weights = [100, 200, 150];
     
     const tx = await subscriptionManager.connect(signers.alice)
       .batchAddToAllowlist(channelId, users, weights);
     
-    // 验证事件
+    // Verify event
     await expect(tx)
       .to.emit(subscriptionManager, "AllowlistUpdated")
       .withArgs(channelId, signers.bob.address, true);
     
-    // 验证allowlist条目
+    // Verify allowlist entries
     const allowlist = await subscriptionManager.getAllowlist(channelId);
     expect(allowlist.length).to.equal(3);
     
-    // 验证用户权重
+    // Verify user weights
     for (let i = 0; i < users.length; i++) {
       expect(allowlist[i].user).to.equal(users[i]);
       expect(allowlist[i].weight).to.equal(weights[i]);
       expect(allowlist[i].exists).to.be.true;
       
-      // 验证单独查询
+      // Verify individual query
       const isInList = await subscriptionManager.isInAllowlist(channelId, users[i]);
       expect(isInList).to.be.true;
     }
   });
 
-  it("只有频道所有者能管理allowlist", async function () {
+  it("Only channel owner can manage allowlist", async function () {
     const users = [signers.bob.address];
     const weights = [100];
     
@@ -76,9 +76,9 @@ describe("FHESubscriptionManager - Allowlist管理功能", function () {
     ).to.be.revertedWithCustomError(subscriptionManager, "NotChannelOwner");
   });
 
-  it("应该验证数组长度一致性", async function () {
+  it("Should validate array length consistency", async function () {
     const users = [signers.bob.address, signers.charlie.address];
-    const weights = [100]; // 数组长度不匹配
+    const weights = [100]; // Array length mismatch
     
     await expect(
       subscriptionManager.connect(signers.alice)
@@ -86,7 +86,7 @@ describe("FHESubscriptionManager - Allowlist管理功能", function () {
     ).to.be.revertedWithCustomError(subscriptionManager, "ArrayLengthMismatch");
   });
 
-  it("应该拒绝空数组", async function () {
+  it("Should reject empty arrays", async function () {
     await expect(
       subscriptionManager.connect(signers.alice)
         .batchAddToAllowlist(channelId, [], [])
@@ -98,8 +98,8 @@ describe("FHESubscriptionManager - Allowlist管理功能", function () {
     ).to.be.revertedWithCustomError(subscriptionManager, "EmptyArray");
   });
 
-  it("应该拒绝过大的数组", async function () {
-    // 创建超过100个用户的数组
+  it("Should reject oversized arrays", async function () {
+    // Create array with more than 100 users
     const users = Array(101).fill(signers.bob.address);
     const weights = Array(101).fill(100);
     
@@ -109,51 +109,51 @@ describe("FHESubscriptionManager - Allowlist管理功能", function () {
     ).to.be.revertedWithCustomError(subscriptionManager, "ArrayTooLarge");
   });
 
-  it("应该成功批量移除allowlist用户", async function () {
-    // 先添加用户
+  it("Should successfully batch remove allowlist users", async function () {
+    // Add users first
     const users = [signers.bob.address, signers.charlie.address, signers.david.address];
     const weights = [100, 200, 150];
     await subscriptionManager.connect(signers.alice)
       .batchAddToAllowlist(channelId, users, weights);
     
-    // 移除部分用户
+    // Remove some users
     const usersToRemove = [signers.bob.address, signers.david.address];
     const tx = await subscriptionManager.connect(signers.alice)
       .batchRemoveFromAllowlist(channelId, usersToRemove);
     
-    // 验证事件
+    // Verify event
     await expect(tx)
       .to.emit(subscriptionManager, "AllowlistUpdated")
       .withArgs(channelId, signers.bob.address, false);
     
-    // 验证剩余用户
+    // Verify remaining users
     const allowlist = await subscriptionManager.getAllowlist(channelId);
     expect(allowlist.length).to.equal(1);
     expect(allowlist[0].user).to.equal(signers.charlie.address);
     
-    // 验证被移除的用户不在列表中
+    // Verify removed users are not in list
     expect(await subscriptionManager.isInAllowlist(channelId, signers.bob.address)).to.be.false;
     expect(await subscriptionManager.isInAllowlist(channelId, signers.david.address)).to.be.false;
     expect(await subscriptionManager.isInAllowlist(channelId, signers.charlie.address)).to.be.true;
   });
 
-  it("应该正确处理重复添加用户", async function () {
-    // 第一次添加
+  it("Should correctly handle duplicate user additions", async function () {
+    // First addition
     await subscriptionManager.connect(signers.alice)
       .batchAddToAllowlist(channelId, [signers.bob.address], [100]);
     
-    // 第二次添加同一用户（权重不同）
+    // Second addition of same user (different weight)
     await subscriptionManager.connect(signers.alice)
       .batchAddToAllowlist(channelId, [signers.bob.address], [200]);
     
-    // 应该只有一个条目，权重更新为200
+    // Should only have one entry with weight updated to 200
     const allowlist = await subscriptionManager.getAllowlist(channelId);
     expect(allowlist.length).to.equal(1);
     expect(allowlist[0].weight).to.equal(200);
   });
 
-  it("应该支持分页查询allowlist", async function () {
-    // 添加5个用户
+  it("Should support paginated allowlist queries", async function () {
+    // Add 5 users
     const users = [
       signers.bob.address, 
       signers.charlie.address, 
@@ -165,28 +165,28 @@ describe("FHESubscriptionManager - Allowlist管理功能", function () {
     await subscriptionManager.connect(signers.alice)
       .batchAddToAllowlist(channelId, users, weights);
     
-    // 分页查询：offset=1, limit=2
+    // Paginated query: offset=1, limit=2
     const [paginatedList, total] = await subscriptionManager
       .getAllowlistPaginated(channelId, 1, 2);
     
     expect(total).to.equal(5);
     expect(paginatedList.length).to.equal(2);
     
-    // 查询全部
+    // Query all
     const [allList] = await subscriptionManager
       .getAllowlistPaginated(channelId, 0, 10);
     expect(allList.length).to.equal(5);
     
-    // 超出范围查询
+    // Out of range query
     const [emptyList] = await subscriptionManager
       .getAllowlistPaginated(channelId, 10, 5);
     expect(emptyList.length).to.equal(0);
   });
 
-  it("应该正确返回allowlist数量", async function () {
+  it("Should correctly return allowlist count", async function () {
     expect(await subscriptionManager.getAllowlistCount(channelId)).to.equal(0);
     
-    // 添加用户
+    // Add users
     const users = [signers.bob.address, signers.charlie.address];
     const weights = [100, 200];
     await subscriptionManager.connect(signers.alice)
@@ -194,7 +194,7 @@ describe("FHESubscriptionManager - Allowlist管理功能", function () {
     
     expect(await subscriptionManager.getAllowlistCount(channelId)).to.equal(2);
     
-    // 移除一个用户
+    // Remove one user
     await subscriptionManager.connect(signers.alice)
       .batchRemoveFromAllowlist(channelId, [signers.bob.address]);
     

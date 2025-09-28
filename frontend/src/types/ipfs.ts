@@ -2,16 +2,16 @@
 
 export interface IPFSChannel {
     /**
-     * 名称
+     * Name
      */
     name: string;
     /**
-     * 描述
+     * Description
      */
     description: string;
 
     /**
-     * ipfs地址 用来显示logo
+     * IPFS address for displaying logo
      */
     logo: string;
 

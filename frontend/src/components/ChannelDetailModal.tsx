@@ -18,21 +18,21 @@ import './ChannelDetailModal.less';
 
 const { Title, Text } = Typography;
 
-// 档位数字到文字的映射
+// Tier number to text mapping
 const TIER_NAMES: Record<number, string> = {
-  0: '1天',
-  1: '1个月',
-  2: '3个月',
-  3: '6个月',
-  4: '1年'
+  0: '1 Day',
+  1: '1 Month',
+  2: '3 Months',
+  3: '6 Months',
+  4: '1 Year'
 };
 
-// 档位转换函数
+// Tier conversion function
 const getTierName = (tier: number): string => {
-  return TIER_NAMES[tier] || `档位${tier}`;
+  return TIER_NAMES[tier] || `Tier ${tier}`;
 };
 
-// NFT合约ABI
+// NFT contract ABI
 const CHANNEL_NFT_ABI = parseAbi([
   'function getSubscription(uint256 tokenId) view returns ((uint256 channelId, uint256 expiresAt, uint8 tier, address subscriber, uint256 mintedAt) subscription)',
   'function isSubscriptionValid(uint256 tokenId) view returns (bool)',
@@ -41,13 +41,13 @@ const CHANNEL_NFT_ABI = parseAbi([
   'function ownerOf(uint256 tokenId) view returns (address)'
 ]);
 
-// 检查用户是否有有效订阅
+// Check if user has valid subscription
 async function checkUserSubscription(nftContractAddress: string, userAddress: string, channelId: bigint): Promise<{
   hasValidSubscription: boolean;
   subscriptionInfo?: SubscriptionNFT;
 }> {
   try {
-    // 获取用户的有效订阅NFT tokenIds
+    // Get user's valid subscription NFT tokenIds
     const tokenIds = await readContract(wagmiConfig, {
       address: nftContractAddress as Address,
       abi: CHANNEL_NFT_ABI,
@@ -57,10 +57,10 @@ async function checkUserSubscription(nftContractAddress: string, userAddress: st
 
     console.log('User valid subscriptions tokenIds:', tokenIds);
 
-    // 检查每个tokenId是否属于当前频道且有效
+    // Check if each tokenId belongs to current channel and is valid
     for (const tokenId of tokenIds) {
       try {
-        // 获取订阅信息
+        // Get subscription info
         const subscription = await readContract(wagmiConfig, {
           address: nftContractAddress as Address,
           abi: CHANNEL_NFT_ABI,
@@ -68,9 +68,9 @@ async function checkUserSubscription(nftContractAddress: string, userAddress: st
           args: [tokenId]
         }) as unknown as SubscriptionNFT;
 
-        // 检查是否属于当前频道
+        // Check if belongs to current channel
         if (subscription.channelId === channelId) {
-          // 检查订阅是否仍然有效（未过期）
+          // Check if subscription is still valid (not expired)
           const isValid = await readContract(wagmiConfig, {
             address: nftContractAddress as Address,
             abi: CHANNEL_NFT_ABI,
@@ -118,9 +118,9 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
   const { status: fheStatus, isReady } = useFHE();
   const fheReady = fheStatus === FHEStatus.READY && isReady();
 
-  // 调试FHE状态
+  // Debug FHE status
   useEffect(() => {
-    console.log('FHE状态调试:', {
+    console.log('FHE status debug:', {
       fheStatus,
       isReady: isReady(),
       fheReady,
@@ -142,53 +142,53 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
   const [signalValue, setSignalValue] = useState<string>('');
   const [formApiRef, setFormApiRef] = useState<any>(null);
 
-  // 解密相关状态
+  // Decryption related state
   const [decryptedResults, setDecryptedResults] = useState<Map<bigint, any>>(new Map());
   const [decryptingTopics, setDecryptingTopics] = useState<Set<bigint>>(new Set());
 
-  // FHE 进度状态
+  // FHE progress state
   const [showFHEProgress, setShowFHEProgress] = useState(false);
   const [fheProgressStep, setFheProgressStep] = useState(0);
   const [fheProgressName, setFheProgressName] = useState('');
 
-  // 使用 useWriteContract hook
+  // Use useWriteContract hook
   const { writeContractAsync, isPending: isWritePending } = useWriteContract();
   const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
 
-  // 等待交易确认
+  // Wait for transaction confirmation
   const { data: receipt, isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash: pendingTxHash as `0x${string}` | undefined,
   });
 
-  // 处理交易状态变化
+  // Handle transaction status changes
   useEffect(() => {
     if (isConfirmed && receipt) {
-      console.log('交易确认结果:', receipt);
+      console.log('Transaction confirmation result:', receipt);
       if (receipt.status === 'success') {
-        Toast.success('🎉 信号提交成功！交易已确认');
+        Toast.success('🎉 Signal submitted successfully! Transaction confirmed');
         setShowSubmitSignal(false);
         setSelectedTopicId(null);
         setSignalValue('');
         setPendingTxHash(null);
-        // 重新加载话题列表
+        // Reload topic list
         loadTopics();
       } else {
-        console.error('交易失败，receipt:', receipt);
-        Toast.error('❌ 交易失败，请查看控制台了解详情');
+        console.error('Transaction failed, receipt:', receipt);
+        Toast.error('❌ Transaction failed, please check console for details');
         setPendingTxHash(null);
       }
       setSubmittingSignal(false);
     }
   }, [isConfirmed, receipt]);
 
-  // 监听交易确认状态变化
+  // Listen for transaction confirmation status changes
   useEffect(() => {
     if (pendingTxHash && isConfirming) {
-      Toast.info('⏳ 交易确认中，请稍候...');
+      Toast.info('⏳ Transaction confirming, please wait...');
     }
   }, [pendingTxHash, isConfirming]);
 
-  // 检查用户权限和订阅状态
+  // Check user permissions and subscription status
   useEffect(() => {
     if (!userAddress || !isConnected) {
       setIsOwner(false);
@@ -200,21 +200,21 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
 
     const checkPermissions = async () => {
       try {
-        // 检查是否是频道拥有者
+        // Check if is channel owner
         const ownerStatus = channel.owner.toLowerCase() === userAddress.toLowerCase();
         setIsOwner(ownerStatus);
 
         console.log('channel', channel);
 
-        // 检查是否在白名单中
+        // Check if in allowlist
         if (!ownerStatus) {
           const allowlistStatus = await ContractService.isInAllowlist(channel.channelId, userAddress);
           setIsInAllowlist(allowlistStatus);
         } else {
-          setIsInAllowlist(true); // 拥有者默认在白名单中
+          setIsInAllowlist(true); // Owner is in allowlist by default
         }
 
-        // 检查是否有有效订阅
+        // Check if has valid subscription
         if (channel.nftContract) {
           const subscriptionResult = await checkUserSubscription(channel.nftContract, userAddress, channel.channelId);
           setHasValidSubscription(subscriptionResult.hasValidSubscription);
@@ -225,7 +225,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
           setSubscriptionInfo(null);
         }
       } catch (error) {
-        console.error('检查用户权限失败:', error);
+        console.error('Failed to check user permissions:', error);
       }
     };
 
@@ -234,27 +234,27 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
     }
   }, [channel, userAddress, isConnected, visible]);
 
-  // 加载频道的所有topics
+  // Load all topics for the channel
   const loadTopics = useCallback(async () => {
     if (!visible) return;
 
     setLoadingTopics(true);
     try {
-      // 根据channel.topicIds获取topic信息
+      // Get topic info based on channel.topicIds
       const topicIds = channel.topicIds || [];
       console.log('channel.topicIds', topicIds);
 
       const topicData = await ContractService.getTopicsByIds(topicIds);
       console.log('topicData', topicData);
 
-      // 并行获取IPFS数据
+      // Get IPFS data in parallel
       const topicsWithIPFS = await Promise.allSettled(
         topicData.map(async (topic) => {
           try {
             const ipfsData = await PinataService.fetchJson<{ title: string; description: string }>(topic.ipfs);
             return { ...topic, ipfsData };
           } catch (ipfsError) {
-            console.warn(`Topic ${topic.topicId} IPFS数据获取失败:`, ipfsError);
+            console.warn(`Topic ${topic.topicId} IPFS data fetch failed:`, ipfsError);
             return { ...topic, ipfsData: undefined };
           }
         })
@@ -269,12 +269,12 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         }
       });
 
-      // 按创建时间倒序排列
+      // Sort by creation time in descending order
       validTopics.sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
       setTopics(validTopics);
     } catch (error) {
-      console.error('加载topics失败:', error);
-      Toast.error('加载话题列表失败');
+      console.error('Failed to load topics:', error);
+      Toast.error('Failed to load topic list');
     } finally {
       setLoadingTopics(false);
     }
@@ -291,7 +291,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
 
     setCreatingTopic(true);
     try {
-      // 上传topic信息到IPFS
+      // Upload topic info to IPFS
       const topicInfo = {
         title: values.title,
         description: values.description
@@ -299,7 +299,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
 
       const ipfsResult = await PinataService.uploadJson(topicInfo);
 
-      // 创建topic
+      // Create topic
       const endDate = BigInt(Math.floor(new Date(values.endDate).getTime() / 1000));
       const result = await ContractService.createTopic(
         channel.channelId,
@@ -311,15 +311,15 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       );
 
       if (result.success) {
-        Toast.success('话题创建成功！');
+        Toast.success('Topic created successfully!');
         setShowCreateTopic(false);
-        loadTopics(); // 重新加载topics
+        loadTopics(); // Reload topics
       } else {
-        Toast.error(`创建话题失败: ${result.error}`);
+        Toast.error(`Failed to create topic: ${result.error}`);
       }
     } catch (error) {
-      console.error('创建话题失败:', error);
-      Toast.error('创建话题失败');
+      console.error('Failed to create topic:', error);
+      Toast.error('Failed to create topic');
     } finally {
       setCreatingTopic(false);
     }
@@ -330,16 +330,16 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
 
     setSubmittingSignal(true);
     try {
-      // 使用传入的值或当前状态中的值，如果都没有则使用默认值
+      // Use passed value or current state value, if neither then use default value
       let value = values?.value || signalValue;
       if (!value) {
-        // 获取当前话题的默认值
+        // Get current topic's default value
         const topic = topics.find(t => t.topicId === selectedTopicId);
         if (topic) {
           value = topic.defaultValue;
-          console.log('使用默认值:', value);
+          console.log('Using default value:', value);
         } else {
-          Toast.error('无法获取话题信息');
+          Toast.error('Unable to get topic info');
           setSubmittingSignal(false);
           return;
         }
@@ -347,125 +347,125 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
 
       const numericValue = Number(value);
       if (isNaN(numericValue)) {
-        Toast.error('请输入有效的数值');
+        Toast.error('Please enter a valid number');
         setSubmittingSignal(false);
         return;
       }
 
-      // 检查FHE是否就绪
+      // Check if FHE is ready
       if (!fheReady) {
-        Toast.error('FHE服务未就绪，请稍后重试');
+        Toast.error('FHE service not ready, please try again later');
         setSubmittingSignal(false);
         return;
       }
 
-      // 显示开始处理的 toast
-      Toast.info('开始验证话题信息...');
+      // Show processing started toast
+      Toast.info('Starting topic info validation...');
 
-      // 预检查：验证话题是否存在且未过期
+      // Pre-check: verify topic exists and is not expired
       try {
         const topic = await ContractService.getTopic(selectedTopicId);
-        console.log('话题信息:', topic);
+        console.log('Topic info:', topic);
         const channel = await ContractService.getChannel(topic.channelId);
         const now = Math.floor(Date.now() / 1000);
         if (Number(topic.endDate) <= now) {
-          Toast.error('话题已过期，无法提交信号');
+          Toast.error('Topic has expired, cannot submit signal');
           setSubmittingSignal(false);
           return;
         }
 
-        // 前端验证信号值范围
+        // Frontend validation of signal value range
         if (numericValue < topic.minValue || numericValue > topic.maxValue) {
-          Toast.error(`信号值必须在 ${topic.minValue} - ${topic.maxValue} 范围内`);
+          Toast.error(`Signal value must be within ${topic.minValue} - ${topic.maxValue} range`);
           setSubmittingSignal(false);
           return;
         }
 
-        // 检查是否已经提交过
+        // Check if already submitted
         const hasSubmitted = await ContractService.hasSubmitted(selectedTopicId, userAddress);
         if (hasSubmitted) {
-          Toast.error('您已经提交过信号了');
+          Toast.error('You have already submitted a signal');
           setSubmittingSignal(false);
           return;
         }
 
-        // 检查是否在白名单中
+        // Check if in allowlist
         const isInAllowlist = await ContractService.isInAllowlist(topic.channelId, userAddress);
         if (!isInAllowlist && channel.owner !== userAddress) {
-          Toast.error('您不在白名单中，无法提交信号');
+          Toast.error('You are not in the allowlist, cannot submit signal');
           setSubmittingSignal(false);
           return;
         }
       } catch (error) {
-        console.error('预检查失败:', error);
-        Toast.error('无法验证话题信息，请稍后重试');
+        console.error('Pre-check failed:', error);
+        Toast.error('Unable to verify topic info, please try again later');
         setSubmittingSignal(false);
         return;
       }
 
-      // 开始 FHE 加密进度
+      // Start FHE encryption progress
       setShowFHEProgress(true);
       setFheProgressStep(1);
-      setFheProgressName('准备 FHE 加密环境...');
+      setFheProgressName('Preparing FHE encryption environment...');
 
-      // 获取合约地址
+      // Get contract address
       const contractAddresses = ContractService.getContractAddresses();
       const contractAddress = contractAddresses.FHESubscriptionManager;
 
-      // 使用FHE加密信号值 - 按照参考模式
-      console.log('开始FHE加密信号值:', {
+      // Use FHE to encrypt signal value - following reference pattern
+      console.log('Starting FHE encryption of signal value:', {
         value: numericValue,
         contractAddress,
         userAddress,
         topicId: selectedTopicId.toString()
       });
 
-      // 验证 FHE 服务状态
+      // Verify FHE service status
       if (!fheService.isReady()) {
-        Toast.error('FHE 服务未就绪');
+        Toast.error('FHE service not ready');
         setSubmittingSignal(false);
         setShowFHEProgress(false);
         return;
       }
 
       setFheProgressStep(2);
-      setFheProgressName('创建加密输入...');
+      setFheProgressName('Creating encrypted input...');
 
       const encryptedInput = fheService.createEncryptedInput(contractAddress, userAddress);
       encryptedInput.add8(numericValue);
 
       setFheProgressStep(3);
-      setFheProgressName('执行 FHE 加密计算...');
+      setFheProgressName('Executing FHE encryption calculation...');
 
       const encryptedResult = await encryptedInput.encrypt();
       const encryptedValueHandle = encryptedResult.handles[0];
       const proof = encryptedResult.inputProof;
 
-      // 验证加密结果
+      // Verify encryption result
       if (!encryptedValueHandle || !proof) {
-        Toast.error('FHE 加密失败：缺少加密数据或证明');
+        Toast.error('FHE encryption failed: missing encrypted data or proof');
         setSubmittingSignal(false);
         setShowFHEProgress(false);
         return;
       }
 
-      // 验证 encryptedValueHandle 是 32 字节（bytes32）
+      // Verify encryptedValueHandle is 32 bytes (bytes32)
       if (encryptedValueHandle.length !== 32) {
-        Toast.error(`FHE 加密失败：encryptedValue 长度应为 32 字节，实际为 ${encryptedValueHandle.length} 字节`);
+        Toast.error(`FHE encryption failed: encryptedValue length should be 32 bytes, actual ${encryptedValueHandle.length} bytes`);
         setSubmittingSignal(false);
         setShowFHEProgress(false);
         return;
       }
 
       setFheProgressStep(4);
-      setFheProgressName('验证加密结果...');
+      setFheProgressName('Verifying encryption result...');
 
-      // 使用相同的转换函数
+      // Use same conversion function
       const uint8ArrayToHex = (array: Uint8Array): `0x${string}` => {
         return `0x${Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('')}` as `0x${string}`;
       };
 
-      console.log('FHE加密完成:', {
+      console.log('FHE encryption completed:', {
         encryptedValue: `Uint8Array(${encryptedValueHandle.length})`,
         proof: `Uint8Array(${proof.length})`,
         encryptedValueHex: uint8ArrayToHex(encryptedValueHandle),
@@ -473,86 +473,86 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       });
 
       setFheProgressStep(5);
-      setFheProgressName('准备提交交易...');
+      setFheProgressName('Preparing to submit transaction...');
 
-      // 获取合约调用配置
+      // Get contract call configuration
       const contractConfig = ContractService.getSubmitSignalConfig(
         selectedTopicId,
         encryptedValueHandle,
         proof
       );
 
-      // 使用 useWriteContract 执行交易
-      console.log('提交交易配置:', contractConfig);
+      // Use useWriteContract to execute transaction
+      console.log('Transaction configuration:', contractConfig);
       const hash = await writeContractAsync(contractConfig);
-      console.log('交易哈希:', hash);
+      console.log('Transaction hash:', hash);
       setPendingTxHash(hash);
 
-      // 完成 FHE 进度
+      // Complete FHE progress
       setFheProgressStep(5);
-      setFheProgressName('FHE 加密完成！');
+      setFheProgressName('FHE encryption completed!');
 
-      // 延迟关闭进度条
+      // Delay closing progress bar
       setTimeout(() => {
         setShowFHEProgress(false);
-        Toast.info('交易已提交，等待确认...');
+        Toast.info('Transaction submitted, waiting for confirmation...');
       }, 1000);
     } catch (error) {
-      console.error('提交信号失败:', error);
+      console.error('Failed to submit signal:', error);
 
-      // 详细的错误信息处理
-      let errorMessage = '未知错误';
+      // Detailed error message handling
+      let errorMessage = 'Unknown error';
       if (error instanceof Error) {
         errorMessage = error.message;
 
-        // 检查常见的合约错误
+        // Check common contract errors
         if (error.message.includes('TopicNotFound')) {
-          errorMessage = '话题不存在';
+          errorMessage = 'Topic does not exist';
         } else if (error.message.includes('TopicExpired')) {
-          errorMessage = '话题已过期';
+          errorMessage = 'Topic has expired';
         } else if (error.message.includes('NotInAllowlist')) {
-          errorMessage = '您不在白名单中，无法提交信号';
+          errorMessage = 'You are not in the allowlist, cannot submit signal';
         } else if (error.message.includes('AlreadySubmitted')) {
-          errorMessage = '您已经提交过信号了';
+          errorMessage = 'You have already submitted a signal';
         } else if (error.message.includes('revert')) {
-          errorMessage = '合约调用失败，请检查权限和参数';
+          errorMessage = 'Contract call failed, please check permissions and parameters';
         }
       }
 
-      Toast.error(`提交信号失败: ${errorMessage}`);
+      Toast.error(`Failed to submit signal: ${errorMessage}`);
       setSubmittingSignal(false);
       setShowFHEProgress(false);
     }
   }, [userAddress, selectedTopicId, submittingSignal, signalValue, fheReady, isWritePending, writeContractAsync, loadTopics]);
 
-  // 刷新频道数据
+  // Refresh channel data
   const handleRefresh = useCallback(async () => {
     try {
-      Toast.info('🔄 正在刷新数据...');
+      Toast.info('🔄 Refreshing data...');
       await loadTopics();
-      Toast.success('✅ 数据刷新完成');
+      Toast.success('✅ Data refresh completed');
     } catch (error) {
-      console.error('刷新数据失败:', error);
-      Toast.error('❌ 刷新数据失败');
+      console.error('Failed to refresh data:', error);
+      Toast.error('❌ Failed to refresh data');
     }
   }, [loadTopics]);
 
-  // 点击话题提交信号
+  // Click topic to submit signal
   const handleTopicClick = useCallback((topic: TopicWithIPFS) => {
     if (!isOwner && !isInAllowlist) {
-      Toast.warning('您没有权限提交信号，需要加入白名单');
+      Toast.warning('You do not have permission to submit signals, need to join allowlist');
       return;
     }
 
-    // 检查话题是否已过期
+    // Check if topic has expired
     if (new Date(Number(topic.endDate) * 1000) <= new Date()) {
-      Toast.warning('该话题已过期，无法提交信号');
+      Toast.warning('This topic has expired, cannot submit signal');
       return;
     }
 
-    // 检查FHE是否就绪
+    // Check if FHE is ready
     if (!fheReady) {
-      Toast.warning('FHE服务未就绪，请等待FHE初始化完成');
+      Toast.warning('FHE service not ready, please wait for FHE initialization to complete');
       return;
     }
 
@@ -560,42 +560,42 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
     setShowSubmitSignal(true);
   }, [isOwner, isInAllowlist, fheReady]);
 
-  // 解密话题结果
+  // Decrypt topic results
   const handleDecryptTopic = useCallback(async (topicId: bigint) => {
     if (!userAddress || !fheReady || !walletClient || (!isOwner && !hasValidSubscription)) {
-      Toast.warning('您没有权限解密话题结果');
+      Toast.warning('You do not have permission to decrypt topic results');
       return;
     }
 
     try {
       setDecryptingTopics(prev => new Set(prev).add(topicId));
 
-      // 获取话题信息
+      // Get topic info
       const topic = await ContractService.getTopic(topicId);
       console.log(topic, 'topic')
-      // 检查是否有提交的信号
+      // Check if there are submitted signals
       if (topic.submissionCount === 0n) {
-        Toast.warning('该话题暂无提交的信号');
+        Toast.warning('This topic has no submitted signals yet');
         return;
       }
 
-      // 使用FHE解密
+      // Use FHE to decrypt
       const contractAddresses = ContractService.getContractAddresses();
       const contractAddress = contractAddresses.FHESubscriptionManager;
 
-      // 从合约获取真实的加密句柄 - 只解密平均值
+      // Get real encrypted handles from contract - only decrypt average value
       const handles = [
-        topic.average             // 平均值句柄 (bytes32)
+        topic.average             // Average value handle (bytes32)
       ];
 
-      // 使用FHEService进行解密
+      // Use FHEService for decryption
       const results = await fheService.decryptMultipleValuesWithWalletClient(
         handles,
         contractAddress,
         walletClient
       );
 
-      // 存储解密结果
+      // Store decryption results
       setDecryptedResults(prev => {
         const newMap = new Map(prev);
         newMap.set(topicId, {
@@ -605,10 +605,10 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         return newMap;
       });
 
-      Toast.success('解密成功！');
+      Toast.success('Decryption successful!');
     } catch (error) {
-      console.error('解密失败:', error);
-      Toast.error('解密失败，请重试');
+      console.error('Decryption failed:', error);
+      Toast.error('Decryption failed, please try again');
     } finally {
       setDecryptingTopics(prev => {
         const newSet = new Set(prev);
@@ -640,7 +640,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
 
   return (
     <Modal
-      title="频道详情"
+      title="Channel Details"
       visible={visible}
       onCancel={onClose}
       footer={null}
@@ -649,7 +649,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       bodyStyle={{ maxHeight: '80vh', overflowY: 'auto' }}
     >
       <div className="channel-detail-modal">
-        {/* 频道基本信息 */}
+        {/* Channel basic info */}
         <Card style={{ marginBottom: 16 }}>
           <div style={{
             display: 'flex',
@@ -671,7 +671,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <Title heading={4} style={{ margin: 0 }}>
-                    {ipfsData?.name || `频道 ${channel.channelId.toString()}`}
+                    {ipfsData?.name || `Channel ${channel.channelId.toString()}`}
                   </Title>
                   <Button
                     type="tertiary"
@@ -684,22 +684,22 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                       minWidth: 'auto',
                       height: 'auto'
                     }}
-                    title="刷新数据"
+                    title="Refresh Data"
                   />
                 </div>
 
                 <Text type="secondary" style={{ marginBottom: 12, display: 'block' }}>
-                  {ipfsData?.description || '暂无描述'}
+                  {ipfsData?.description || 'No description'}
                 </Text>
 
                 <Space wrap>
                   <Tag color="blue">
                     <IconUser style={{ marginRight: 4 }} />
-                    {totalSubscribers.toString()} 订阅者
+                    {totalSubscribers.toString()} Subscribers
                   </Tag>
 
                   <Tag color="green">
-                    {topics.length} 话题
+                    {topics.length} Topics
                   </Tag>
 
                   {tierInfo.tierCount > 0 && (
@@ -715,21 +715,21 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                     ID: {channel.channelId.toString()}
                   </Tag>
 
-                  {/* 用户状态显示 */}
+                  {/* User status display */}
                   {isConnected && (
                     <>
-                      {/* 拥有者状态 */}
+                      {/* Owner status */}
                       {isOwner && (
                         <Tag color="red">
-                          👑 频道拥有者
+                          👑 Channel Owner
                         </Tag>
                       )}
 
-                      {/* 订阅状态 */}
+                      {/* Subscription status */}
                       <Tag color={hasValidSubscription ? "green" : "grey"}>
                         {hasValidSubscription ?
-                          `✓ 已订阅${subscriptionInfo ? ` (${getTierName(Number(subscriptionInfo.tier))})` : ''}` :
-                          "未订阅"
+                          `✓ Subscribed${subscriptionInfo ? ` (${getTierName(Number(subscriptionInfo.tier))})` : ''}` :
+                          "Not Subscribed"
                         }
                       </Tag>
                     </>
@@ -741,7 +741,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                 <div style={{ marginTop: 12 }}>
                   <Text type="tertiary" size="small">
                     <IconCalendar style={{ marginRight: 4 }} />
-                    创建于 {ContractService.formatTimestamp(channel.createdAt)}
+                    Created at {ContractService.formatTimestamp(channel.createdAt)}
                   </Text>
                 </div>
               </div>
@@ -752,7 +752,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
           </div>
 
 
-          {/* 操作按钮 */}
+          {/* Action buttons */}
           {isConnected && isOwner && (
             <Space>
               <Button
@@ -760,7 +760,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                 icon={<IconPlus />}
                 onClick={() => setShowCreateTopic(true)}
               >
-                创建话题
+                Create Topic
               </Button>
 
               <Button
@@ -770,23 +770,23 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                 onClick={() => setShowAllowlistModal(true)}
                 style={{ marginRight: 8 }}
               >
-                管理白名单
+                Manage Allowlist
               </Button>
             </Space>
           )}
 
         </Card>
 
-        {/* 话题列表 */}
-        <Card title="历史话题">
+        {/* Topic list */}
+        <Card title="Historical Topics">
           {loadingTopics ? (
             <div style={{ textAlign: 'center', padding: 40 }}>
               <Spin size="large" />
             </div>
           ) : topics.length === 0 ? (
             <Empty
-              title="暂无话题"
-              description="该频道还没有创建任何话题"
+              title="No Topics"
+              description="This channel has not created any topics yet"
             />
           ) : (
             <List
@@ -812,51 +812,51 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                   >
                     <div style={{ width: '100%' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                        <Title heading={6} style={{ margin: 0 }}>
-                          {topic.ipfsData?.title || `话题 ${topic.topicId.toString()}`}
-                        </Title>
+                          <Title heading={6} style={{ margin: 0 }}>
+                            {topic.ipfsData?.title || `Topic ${topic.topicId.toString()}`}
+                          </Title>
                         <Space>
                           <Tag size="small" color="cyan">
                             ID: {topic.topicId.toString()}
                           </Tag>
                           <Tag size="small" color={isExpired ? 'red' : 'green'}>
-                            {isExpired ? '已结束' : '进行中'}
+                            {isExpired ? 'Ended' : 'In Progress'}
                           </Tag>
                           {canSubmit && (
                             <Tag size="small" color="blue">
-                              点击提交信号
+                              Click to Submit Signal
                             </Tag>
                           )}
                           {!canSubmit && !isExpired && (isOwner || isInAllowlist) && !fheReady && (
                             <Tag size="small" color="orange">
-                              FHE未就绪
+                              FHE Not Ready
                             </Tag>
                           )}
                           {!canSubmit && !isExpired && !(isOwner || isInAllowlist) && (
                             <Tag size="small" color="grey">
-                              无权限
+                              No Permission
                             </Tag>
                           )}
                         </Space>
                       </div>
 
                       <Text type="secondary" style={{ marginBottom: 8, display: 'block' }}>
-                        {topic.ipfsData?.description || '暂无描述'}
+                        {topic.ipfsData?.description || 'No description'}
                       </Text>
 
                       <Space wrap>
                         <Text size="small" type="tertiary">
-                          提交数: {topic.submissionCount.toString()}
+                          Submissions: {topic.submissionCount.toString()}
                         </Text>
                         <Text size="small" type="tertiary">
-                          范围: {topic.minValue} - {topic.maxValue}
+                          Range: {topic.minValue} - {topic.maxValue}
                         </Text>
                         <Text size="small" type="tertiary">
-                          截止: {new Date(Number(topic.endDate) * 1000).toLocaleString('zh-CN')}
+                          Deadline: {new Date(Number(topic.endDate) * 1000).toLocaleString('en-US')}
                         </Text>
                       </Space>
 
-                      {/* 加密结果显示区域 */}
+                      {/* Encrypted results display area */}
                       {topic.submissionCount > 0n && (
                         <div style={{
                           marginTop: 12,
@@ -866,7 +866,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                           border: '1px solid var(--semi-color-border)'
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                            <Text size="small" strong>加密结果:</Text>
+                            <Text size="small" strong>Encrypted Results:</Text>
                             {(isOwner || hasValidSubscription) && (
                               <Button
                                 size="small"
@@ -878,7 +878,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                                 }}
                                 disabled={!fheReady}
                               >
-                                {decryptingTopics.has(topic.topicId) ? '解密中...' : '解密'}
+                                {decryptingTopics.has(topic.topicId) ? 'Decrypting...' : 'Decrypt'}
                               </Button>
                             )}
                           </div>
@@ -886,13 +886,13 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                           {decryptedResults.has(topic.topicId) ? (
                             <div>
                               <Text size="small" type="secondary">
-                                平均值: {decryptedResults.get(topic.topicId)?.average || '***'}
+                                Average: {decryptedResults.get(topic.topicId)?.average || '***'}
                               </Text>
                             </div>
                           ) : (
                             <div>
                               <Text size="small" type="tertiary">
-                                平均值: ***
+                                Average: ***
                               </Text>
                             </div>
                           )}
@@ -910,9 +910,9 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
           height: '24px'
         }}></div>
 
-        {/* 创建话题弹窗 */}
+        {/* Create topic modal */}
         <Modal
-          title="创建新话题"
+          title="Create New Topic"
           visible={showCreateTopic}
           onCancel={creatingTopic ? undefined : () => setShowCreateTopic(false)}
           closeOnEsc={!creatingTopic}
@@ -926,33 +926,33 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
           >
             <Form.Input
               field="title"
-              label="话题标题"
-              placeholder="请输入话题标题"
-              rules={[{ required: true, message: '请输入话题标题' }]}
+              label="Topic Title"
+              placeholder="Please enter topic title"
+              rules={[{ required: true, message: 'Please enter topic title' }]}
             />
             <div style={{ marginTop: -8, marginBottom: 16 }}>
               <Text type="tertiary" size="small">
-                为话题起一个简洁明了的标题，让用户快速了解话题内容
+                Give the topic a concise and clear title to help users quickly understand the topic content
               </Text>
             </div>
 
             <Form.Input
               field="description"
-              label="话题描述"
-              placeholder="请输入话题描述"
+              label="Topic Description"
+              placeholder="Please enter topic description"
             />
             <div style={{ marginTop: -8, marginBottom: 16 }}>
               <Text type="tertiary" size="small">
-                详细描述话题的背景、目的和参与方式，帮助用户理解话题
+                Describe in detail the background, purpose and participation method of the topic to help users understand the topic
               </Text>
             </div>
 
             <Form.Input
               field="endDate"
-              label="截止时间"
+              label="Deadline"
               type="datetime-local"
-              placeholder="请选择截止时间"
-              rules={[{ required: true, message: '请选择截止时间' }]}
+              placeholder="Please select deadline"
+              rules={[{ required: true, message: 'Please select deadline' }]}
               initValue={(() => {
                 // 默认设置为1个星期后
                 const oneWeekLater = new Date();
@@ -963,15 +963,15 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
             />
             <div style={{ marginTop: -8, marginBottom: 16 }}>
               <Text type="tertiary" size="small">
-                设置话题的结束时间，到期后用户将无法再提交信号
+                Set the end time of the topic, after which users will no longer be able to submit signals
               </Text>
             </div>
 
             <Form.InputNumber
               field="minValue"
-              label="最小值"
-              placeholder="请输入最小值"
-              rules={[{ required: true, message: '请输入最小值' }]}
+              label="Minimum Value"
+              placeholder="Please enter minimum value"
+              rules={[{ required: true, message: 'Please enter minimum value' }]}
               style={{ width: '100%' }}
               initValue={1}
               min={1}
@@ -987,15 +987,15 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
             />
             <div style={{ marginTop: -8, marginBottom: 16 }}>
               <Text type="tertiary" size="small">
-                用户可提交信号的最小值，超出范围将自动调整为 默认值
+                The minimum value that users can submit signals, values outside the range will be automatically adjusted to the default value
               </Text>
             </div>
 
             <Form.InputNumber
               field="maxValue"
-              label="最大值"
-              placeholder="请输入最大值"
-              rules={[{ required: true, message: '请输入最大值' }]}
+              label="Maximum Value"
+              placeholder="Please enter maximum value"
+              rules={[{ required: true, message: 'Please enter maximum value' }]}
               style={{ width: '100%' }}
               initValue={100}
               min={1}
@@ -1011,15 +1011,15 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
             />
             <div style={{ marginTop: -8, marginBottom: 16 }}>
               <Text type="tertiary" size="small">
-                用户可提交信号的最大值，超出范围将自动调整为 默认值
+                The maximum value that users can submit signals, values outside the range will be automatically adjusted to the default value
               </Text>
             </div>
 
             <Form.InputNumber
               field="defaultValue"
-              label="默认值"
-              placeholder="请输入默认值"
-              rules={[{ required: true, message: '请输入默认值' }]}
+              label="Default Value"
+              placeholder="Please enter default value"
+              rules={[{ required: true, message: 'Please enter default value' }]}
               style={{ width: '100%' }}
               initValue={50}
               min={1}
@@ -1035,16 +1035,16 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
             />
             <div style={{ marginTop: -8, marginBottom: 16 }}>
               <Text type="tertiary" size="small">
-                用户提交信号时,如果超出范围会调整到的默认值
+                When users submit signals, if they exceed the range, they will be adjusted to this default value
               </Text>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
               <Button onClick={() => setShowCreateTopic(false)}>
-                取消
+                Cancel
               </Button>
               <Button htmlType="submit" type="primary" loading={creatingTopic}>
-                创建话题
+                Create Topic
               </Button>
             </div>
           </Form>
@@ -1054,9 +1054,9 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
 
         </Modal>
 
-        {/* 提交信号弹窗 */}
+        {/* Submit signal modal */}
         <Modal
-          title="提交信号"
+          title="Submit Signal"
           visible={showSubmitSignal}
           onCancel={submittingSignal || isWritePending || isConfirming ? undefined : () => {
             setShowSubmitSignal(false);
@@ -1078,10 +1078,10 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               <Card style={{ marginBottom: 20, border: '1px solid var(--semi-color-border)' }}>
                 <div style={{ marginBottom: 12 }}>
                   <Title heading={5} style={{ margin: 0, marginBottom: 8 }}>
-                    {topic.ipfsData?.title || `话题 ${topic.topicId.toString()}`}
+                    {topic.ipfsData?.title || `Topic ${topic.topicId.toString()}`}
                   </Title>
                   <Text type="secondary" style={{ marginBottom: 12, display: 'block' }}>
-                    {topic.ipfsData?.description || '暂无描述'}
+                    {topic.ipfsData?.description || 'No description'}
                   </Text>
                 </div>
 
@@ -1090,10 +1090,10 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                     ID: {topic.topicId.toString()}
                   </Tag>
                   <Tag size="small" color={isExpired ? 'red' : 'green'}>
-                    {isExpired ? '已结束' : '进行中'}
+                    {isExpired ? 'Ended' : 'In Progress'}
                   </Tag>
                   <Tag size="small" color="blue">
-                    提交数: {topic.submissionCount.toString()}
+                    Submissions: {topic.submissionCount.toString()}
                   </Tag>
                 </Space>
 
@@ -1105,21 +1105,21 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text type="secondary" size="small">信号值范围：</Text>
+                      <Text type="secondary" size="small">Signal Value Range:</Text>
                       <Text size="small" strong>
                         {topic.minValue} - {topic.maxValue}
                       </Text>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text type="secondary" size="small">默认值：</Text>
+                      <Text type="secondary" size="small">Default Value:</Text>
                       <Text size="small" strong>
                         {topic.defaultValue}
                       </Text>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text type="secondary" size="small">截止时间：</Text>
+                      <Text type="secondary" size="small">Deadline:</Text>
                       <Text size="small" strong>
-                        {new Date(Number(topic.endDate) * 1000).toLocaleString('zh-CN')}
+                        {new Date(Number(topic.endDate) * 1000).toLocaleString('en-US')}
                       </Text>
                     </div>
                   </div>
@@ -1134,12 +1134,12 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                   justifyContent: 'space-between'
                 }}>
                   <Space align="center">
-                    <Text type="secondary" size="small">FHE状态：</Text>
+                    <Text type="secondary" size="small">FHE Status:</Text>
                     <FHEStatusIndicator showLabel={true} size="small" />
                   </Space>
                   {!fheReady && (
                     <Text type="tertiary" size="small">
-                      请等待FHE初始化完成
+                      Please wait for FHE initialization to complete
                     </Text>
                   )}
                 </div>
@@ -1155,21 +1155,21 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               return (
                 <Form.InputNumber
                   field="value"
-                  label="信号值"
-                  placeholder={`请输入 ${topic.minValue} - ${topic.maxValue} 之间的整数`}
+                  label="Signal Value"
+                  placeholder={`Please enter an integer between ${topic.minValue} - ${topic.maxValue}`}
                   rules={[
-                    { required: true, message: '请输入信号值' },
+                    { required: true, message: 'Please enter signal value' },
                     {
                       validator: (_, value) => {
                         if (!value) return true;
 
                         const numValue = Number(value);
                         if (!Number.isInteger(numValue)) {
-                          return new Error('请输入整数');
+                          return new Error('Please enter an integer');
                         }
 
                         if (numValue < topic.minValue || numValue > topic.maxValue) {
-                          return new Error(`请输入 ${topic.minValue} - ${topic.maxValue} 之间的整数`);
+                          return new Error(`Please enter an integer between ${topic.minValue} - ${topic.maxValue}`);
                         }
 
                         return true;
@@ -1188,7 +1188,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
             })()}
             <div style={{ marginTop: -8, marginBottom: 16 }}>
               <Text type="tertiary" size="small">
-                请输入符合话题设定的整数，超出范围将自动调整为默认值
+                Please enter an integer that meets the topic settings, values outside the range will be automatically adjusted to the default value
               </Text>
             </div>
 
@@ -1201,7 +1201,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                 }}
                 disabled={submittingSignal || isWritePending || isConfirming}
               >
-                取消
+                Cancel
               </Button>
               <Button
                 htmlType="submit"
@@ -1209,10 +1209,10 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                 loading={submittingSignal || isWritePending || isConfirming}
                 disabled={!fheReady || submittingSignal || isWritePending}
               >
-                {!fheReady ? 'FHE未就绪' :
-                  isWritePending ? '提交中...' :
-                    isConfirming ? '确认中...' :
-                      '提交信号'}
+                {!fheReady ? 'FHE Not Ready' :
+                  isWritePending ? 'Submitting...' :
+                    isConfirming ? 'Confirming...' :
+                      'Submit Signal'}
               </Button>
             </div>
           </Form>

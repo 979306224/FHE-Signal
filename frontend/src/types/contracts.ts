@@ -1,6 +1,6 @@
-// TypeScript类型定义，对应Solidity合约中的结构体和枚举
+// TypeScript type definitions, corresponding to structs and enums in Solidity contracts
 
-// 订阅时长等级枚举
+// Subscription duration tier enum
 export const DurationTier = {
   OneDay: 0,
   Month: 1,
@@ -11,14 +11,14 @@ export const DurationTier = {
 
 export type DurationTier = typeof DurationTier[keyof typeof DurationTier];
 
-// 等级价格结构体
+// Tier price struct
 export interface TierPrice {
   tier: DurationTier;
   price: bigint;
   subscribers: bigint;
 }
 
-// 频道结构体
+// Channel struct
 export interface Channel {
   channelId: bigint;
   info: string;
@@ -31,7 +31,7 @@ export interface Channel {
   topicIds: bigint[];
 }
 
-// Topic结构体
+// Topic struct
 export interface Topic {
   topicId: bigint;
   channelId: bigint;
@@ -42,32 +42,32 @@ export interface Topic {
   minValue: number;
   maxValue: number;
   defaultValue: number;
-  // FHE加密的句柄 (bytes32)
-  totalWeightedValue: string;  // 加权总值句柄
-  average: string;             // 平均值句柄
+  // FHE encrypted handles (bytes32)
+  totalWeightedValue: string;  // Total weighted value handle
+  average: string;             // Average value handle
   totalWeight: bigint;
   submissionCount: bigint;
   signalIds: bigint[];
 }
 
-// Allowlist条目结构体
+// Allowlist entry struct
 export interface AllowlistEntry {
   user: string;
   weight: bigint;
   exists: boolean;
 }
 
-// Signal结构体
+// Signal struct
 export interface Signal {
   signalId: bigint;
   channelId: bigint;
   topicId: bigint;
   submitter: string;
-  // 注意：value是FHE加密的，无法直接读取
+  // Note: value is FHE encrypted, cannot be read directly
   submittedAt: bigint;
 }
 
-// 订阅NFT结构体
+// Subscription NFT struct
 export interface SubscriptionNFT {
   channelId: bigint;
   expiresAt: bigint;
@@ -76,13 +76,13 @@ export interface SubscriptionNFT {
   mintedAt: bigint;
 }
 
-// 合约地址配置
+// Contract address configuration
 export interface ContractAddresses {
   FHESubscriptionManager: string;
   NFTFactory: string;
 }
 
-// 分页查询结果
+// Paginated query result
 export interface PaginatedResult<T> {
   items: T[];
   total: bigint;
@@ -90,7 +90,7 @@ export interface PaginatedResult<T> {
   limit: number;
 }
 
-// 交易结果
+// Transaction result
 export interface TransactionResult {
   hash: string;
   blockNumber?: bigint;
@@ -99,14 +99,14 @@ export interface TransactionResult {
   error?: string;
 }
 
-// 事件过滤器参数
+// Event filter parameters
 export interface EventFilter {
   fromBlock?: bigint;
   toBlock?: bigint;
   address?: string;
 }
 
-// 批量操作参数
+// Batch operation parameters
 export interface BatchAllowlistParams {
   channelId: bigint;
   users: string[];

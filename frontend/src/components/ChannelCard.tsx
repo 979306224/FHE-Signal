@@ -53,14 +53,14 @@ export default function ChannelCard({ channel, ipfsData, onViewDetails, onSubscr
     onSubscribe?.(channel.channelId);
   };
 
-  const channelName = ipfsData?.name || `频道 ${channel.channelId.toString()}`;
-  const channelDescription = ipfsData?.description || '暂无描述';
+  const channelName = ipfsData?.name || `Channel ${channel.channelId.toString()}`;
+  const channelDescription = ipfsData?.description || 'No description';
 
   return (
     <>
       <div className="channel-card-wrapper" onClick={handleViewDetails}>
         <Card className="channel-card" bodyStyle={{ padding: 0, height: '100%' }}>
-          {/* 卡片头部 - 头像和标题区域 */}
+          {/* Card header - avatar and title area */}
           <div className="card-header">
             <div className="avatar-section">
               <Avatar 
@@ -96,17 +96,17 @@ export default function ChannelCard({ channel, ipfsData, onViewDetails, onSubscr
             </div>
           </div>
 
-          {/* 统计标签区域 */}
+          {/* Statistics tags area */}
           <div className="stats-section">
             <div className="stats-container">
-              <Tooltip content={`总订阅者数量: ${totalSubscribers.toString()}`} position="top">
+              <Tooltip content={`Total subscribers: ${totalSubscribers.toString()}`} position="top">
                 <Tag size="small" color="blue" className="stat-tag">
                   <IconUser className="stat-icon" />
                   <span className="stat-text">{totalSubscribers.toString()}</span>
                 </Tag>
               </Tooltip>
               
-              <Tooltip content={`话题数量: ${channel.topicIds?.length || 0}`} position="top">
+              <Tooltip content={`Topic count: ${channel.topicIds?.length || 0}`} position="top">
                 <Tag size="small" color="green" className="stat-tag">
                   <IconEyeOpened className="stat-icon" />
                   <span className="stat-text">{channel.topicIds?.length || 0}</span>
@@ -117,8 +117,8 @@ export default function ChannelCard({ channel, ipfsData, onViewDetails, onSubscr
                 <Tooltip 
                   content={
                     tierInfo.minPrice === tierInfo.maxPrice 
-                      ? `订阅价格: ${tierInfo.minPrice} ETH`
-                      : `订阅价格范围: ${tierInfo.minPrice} - ${tierInfo.maxPrice} ETH`
+                      ? `Subscription price: ${tierInfo.minPrice} ETH`
+                      : `Subscription price range: ${tierInfo.minPrice} - ${tierInfo.maxPrice} ETH`
                   } 
                   position="top"
                 >
@@ -135,7 +135,7 @@ export default function ChannelCard({ channel, ipfsData, onViewDetails, onSubscr
             </div>
           </div>
 
-          {/* 卡片底部 - 时间和操作按钮 */}
+          {/* Card footer - time and action buttons */}
           <div className="card-footer">
             <div className="footer-left">
               <IconCalendar className="footer-icon" />
@@ -151,14 +151,14 @@ export default function ChannelCard({ channel, ipfsData, onViewDetails, onSubscr
                 className="subscribe-button"
                 onClick={handleSubscribe}
               >
-                查看
+                View
               </Button>
             </div>
           </div>
         </Card>
       </div>
       
-      {/* 频道详情弹窗 */}
+      {/* Channel detail modal */}
       <ChannelDetailModal
         visible={showDetailModal}
         onClose={() => setShowDetailModal(false)}

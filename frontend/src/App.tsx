@@ -10,7 +10,7 @@ import Navigation from './components/Navigation';
 import { wagmiConfig } from './config/wallet';
 import { FHEProvider } from './FHE/fheContext';
 
-// 页面缓存组件
+// Page cache component
 function CachedPage({ children, path }: { children: React.ReactNode; path: string }) {
   const location = useLocation();
   const isActive = location.pathname === path;
@@ -25,7 +25,7 @@ import Home from './pages/Home';
 import Channel from './pages/Channel';
 import { ChannelList } from './pages/ChannelList';
 function AppContent() {
-  // 使用useMemo缓存页面组件，避免重复创建
+  // Use useMemo to cache page components, avoiding repeated creation
   const cachedPages = useMemo(() => ({
     home: <Home />,
     channelList: <ChannelList />,
@@ -44,7 +44,7 @@ function AppContent() {
   );
 }
 
-// 创建 QueryClient 实例
+// Create QueryClient instance
 const queryClient = new QueryClient();
 
 function App() {

@@ -1,18 +1,18 @@
 /**
- * 服务模块导出文件
+ * Service module export file
  */
 
-// 导出合约服务
+// Export contract service
 export { default as ContractService } from './contractService';
 
-// 导出FHE服务
+// Export FHE service
 export { default as FHEService, FHEHelpers } from './fheIntegration';
 
-// 导出Pinata服务
+// Export Pinata service
 export { default as PinataService } from './pinataService';
 
-// 导出类型定义
+// Export type definitions
 export * from '../types/contracts';
 
-// 导出交易提示工具
+// Export transaction toast utilities
 export * from '../components/TransactionToast';

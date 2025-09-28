@@ -3,7 +3,7 @@ import type { FhevmInstance, DecryptedResults } from "@zama-fhe/relayer-sdk/bund
 import type { Signer } from "ethers";
 import type { WalletClient } from "viem";
 
-// 扩展Window接口
+// Extend Window interface
 declare global {
   interface Window {
     ethereum?: any;
@@ -14,7 +14,7 @@ let fheInstance: FhevmInstance | null = null;
 
 function getFheInstance(): FhevmInstance {
   if (!fheInstance) {
-    throw new Error("FHE实例未初始化");
+    throw new Error("FHE instance not initialized");
   }
   return fheInstance;
 }
@@ -34,7 +34,7 @@ export class FHEService {
     return FHEService.instance;
   }
 
-  /** 初始化FHE SDK并连接MetaMask到Sepolia */
+  /** Initialize FHE SDK and connect MetaMask to Sepolia */
   async initialize() {
     if (this.isInitialized) {
       return;
@@ -58,29 +58,29 @@ export class FHEService {
     this.hasFailed = false;
 
     try {
-      console.log('[FHE] 开始初始化FHE SDK...');
+      console.log('[FHE] Starting FHE SDK initialization...');
       await initSDK();
 
       const hasWindow = typeof window !== 'undefined';
       if (!hasWindow) {
-        console.log('[FHE] 未检测到浏览器环境，创建基础FHE实例...');
-        // 非浏览器环境时创建基础实例
+        console.log('[FHE] Browser environment not detected, creating basic FHE instance...');
+        // Create basic instance in non-browser environment
         const config = SepoliaConfig;
         fheInstance = await createInstance(config);
         this.isInitialized = true;
-        console.log('[FHE] FHE基础实例初始化完成');
+        console.log('[FHE] FHE basic instance initialization completed');
         return;
       }
 
       const ethereumProvider = window.ethereum;
 
       if (!ethereumProvider) {
-        console.log('[FHE] 未检测到以太坊提供者，创建基础FHE实例...');
-        // 没有钱包时创建基础实例
+        console.log('[FHE] Ethereum provider not detected, creating basic FHE instance...');
+        // Create basic instance when no wallet
         const config = SepoliaConfig;
         fheInstance = await createInstance(config);
         this.isInitialized = true;
-        console.log('[FHE] FHE基础实例初始化完成');
+        console.log('[FHE] FHE basic instance initialization completed');
         return;
       }
 
@@ -104,7 +104,7 @@ export class FHEService {
             ],
           });
         } else {
-          console.warn('[FHE] 网络切换失败，可能已经在其他网络？', switchError);
+          console.warn('[FHE] Network switch failed, might already be on other network?', switchError);
         }
       }
 
@@ -112,9 +112,9 @@ export class FHEService {
       fheInstance = await createInstance(config);
 
       this.isInitialized = true;
-      console.log('[FHE] FHE SDK初始化完成');
+      console.log('[FHE] FHE SDK initialization completed');
     } catch (err) {
-      console.error('[FHE] FHE SDK初始化失败', err);
+      console.error('[FHE] FHE SDK initialization failed', err);
       this.hasFailed = true;
       throw err;
     }
@@ -128,21 +128,21 @@ export class FHEService {
     await this.initialize();
 
     if (!this.isInitialized) {
-      throw new Error("FHE服务未初始化");
+      throw new Error("FHE service not initialized");
     }
   }
 
-  /** 创建加密输入实例 */
+  /** Create encrypted input instance */
   createEncryptedInput(contractAddress: string, userAddress: string) {
-    if (!this.isInitialized) throw new Error("FHE服务未初始化");
+    if (!this.isInitialized) throw new Error("FHE service not initialized");
     return getFheInstance().createEncryptedInput(contractAddress, userAddress);
   }
 
   /**
-   * 使用ethers Signer签名并解密多个密文句柄
-   * @param handles 密文句柄数组
-   * @param contractAddress 合约地址
-   * @param signer ethers Signer实例（带地址）
+   * Use ethers Signer to sign and decrypt multiple ciphertext handles
+   * @param handles Array of ciphertext handles
+   * @param contractAddress Contract address
+   * @param signer ethers Signer instance (with address)
    */
   async decryptMultipleValues(
     handles: string[],
@@ -153,14 +153,14 @@ export class FHEService {
 
     const instance = getFheInstance();
 
-    // 1. 生成用户临时密钥对
+    // 1. Generate user temporary keypair
     const keypair = instance.generateKeypair();
     const publicKey = keypair.publicKey;
     const privateKey = keypair.privateKey;
 
-    // 2. 构造EIP-712签名请求
+    // 2. Construct EIP-712 signature request
     const startTimestamp = Math.floor(Date.now() / 1000).toString();
-    const durationDays = "10"; // 可根据需要调整
+    const durationDays = "10"; // Can be adjusted as needed
     const contractAddresses = [contractAddress];
     const eip712 = instance.createEIP712(
       publicKey,
@@ -169,16 +169,16 @@ export class FHEService {
       durationDays
     );
 
-    // 3. 使用ethers Signer签名（signTypedData）
+    // 3. Use ethers Signer to sign (signTypedData)
     const signature = await signer.signTypedData(
       eip712.domain,
       { UserDecryptRequestVerification: eip712.types.UserDecryptRequestVerification },
       eip712.message
     );
-    // 移除0x前缀
+    // Remove 0x prefix
     const sig = signature.replace(/^0x/, "");
 
-    // 4. 调用FHEVM SDK进行解密
+    // 4. Call FHEVM SDK for decryption
     const handlePairs = handles.map(handle => ({ handle, contractAddress }));
     const results = await instance.userDecrypt(
       handlePairs,
@@ -195,10 +195,10 @@ export class FHEService {
   }
 
   /**
-   * 解密单个密文句柄
-   * @param handle 密文句柄
-   * @param contractAddress 合约地址
-   * @param signer ethers Signer实例
+   * Decrypt single ciphertext handle
+   * @param handle Ciphertext handle
+   * @param contractAddress Contract address
+   * @param signer ethers Signer instance
    */
   async decryptSingleValue(
     handle: string,
@@ -210,30 +210,30 @@ export class FHEService {
   }
 
   /**
-   * 使用WalletClient解密多个密文句柄
-   * @param handles 密文句柄数组
-   * @param contractAddress 合约地址
-   * @param walletClient wagmi WalletClient实例
+   * Use WalletClient to decrypt multiple ciphertext handles
+   * @param handles Array of ciphertext handles
+   * @param contractAddress Contract address
+   * @param walletClient wagmi WalletClient instance
    */
   async decryptMultipleValuesWithWalletClient(
     handles: string[],
     contractAddress: string,
     walletClient: WalletClient
   ): Promise<DecryptedResults> {
-    if (!walletClient.account) throw new Error("钱包账户未连接");
+    if (!walletClient.account) throw new Error("Wallet account not connected");
 
     await this.ensureInitialized();
 
     const instance = getFheInstance();
 
-    // 1. 生成用户临时密钥对
+    // 1. Generate user temporary keypair
     const keypair = instance.generateKeypair();
     const publicKey = keypair.publicKey;
     const privateKey = keypair.privateKey;
 
-    // 2. 构造EIP-712签名请求
+    // 2. Construct EIP-712 signature request
     const startTimestamp = Math.floor(Date.now() / 1000).toString();
-    const durationDays = "10"; // 可根据需要调整
+    const durationDays = "10"; // Can be adjusted as needed
     const contractAddresses = [contractAddress];
     const eip712 = instance.createEIP712(
       publicKey,
@@ -242,7 +242,7 @@ export class FHEService {
       durationDays
     );
     
-    // 3. 使用WalletClient签名
+    // 3. Use WalletClient to sign
     const signature = await walletClient.signTypedData({
       account: walletClient.account,
       domain: {
@@ -254,10 +254,10 @@ export class FHEService {
       message: eip712.message,
     });
     
-    // 移除0x前缀
+    // Remove 0x prefix
     const sig = signature.replace(/^0x/, "");
     
-    // 4. 调用FHEVM SDK进行解密
+    // 4. Call FHEVM SDK for decryption
     const handlePairs = handles.map(handle => ({ handle, contractAddress }));
     const results = await instance.userDecrypt(
       handlePairs,
@@ -286,10 +286,10 @@ export class FHEService {
   }
 
   /**
-   * 加密信号值
-   * @param value 要加密的数值
-   * @param contractAddress 合约地址
-   * @param userAddress 用户地址
+   * Encrypt signal value
+   * @param value Value to encrypt
+   * @param contractAddress Contract address
+   * @param userAddress User address
    */
   async encryptSignalValue(
     value: number,
@@ -301,7 +301,7 @@ export class FHEService {
     const instance = getFheInstance();
     
     try {
-      // 创建加密输入实例
+      // Create encrypted input instance
       const encryptedInput = await this.createEncryptedInput(contractAddress, userAddress)
                                   .add8(value)
                                   .encrypt()
@@ -316,11 +316,11 @@ export class FHEService {
         proof: proof
       };
     } catch (error) {
-      console.error('FHE加密失败:', error);
-      throw new Error(`FHE加密失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      console.error('FHE encryption failed:', error);
+      throw new Error(`FHE encryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }
 
-// 导出单例
+// Export singleton
 export const fheService = FHEService.getInstance();

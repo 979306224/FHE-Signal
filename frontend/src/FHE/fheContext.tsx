@@ -3,14 +3,14 @@ import type { ReactNode } from 'react';
 import type { FhevmInstance } from '@zama-fhe/relayer-sdk/bundle';
 import { fheService } from './fheService';
 
-// 扩展Window接口
+// Extend Window interface
 declare global {
   interface Window {
     ethereum?: any;
   }
 }
 
-// FHE状态枚举
+// FHE status enum
 export const FHEStatus = {
   IDLE: 'idle',
   LOADING: 'loading',
@@ -20,7 +20,7 @@ export const FHEStatus = {
 
 export type FHEStatusType = typeof FHEStatus[keyof typeof FHEStatus];
 
-// FHE上下文类型定义
+// FHE context type definition
 interface FHEContextType {
   status: FHEStatusType;
   instance: FhevmInstance | null;
@@ -29,10 +29,10 @@ interface FHEContextType {
   isReady: () => boolean;
 }
 
-// 创建上下文
+// Create context
 const FHEContext = createContext<FHEContextType | undefined>(undefined);
 
-// FHE Provider组件
+// FHE Provider component
 interface FHEProviderProps {
   children: ReactNode;
 }
@@ -51,21 +51,21 @@ export function FHEProvider({ children }: FHEProviderProps) {
     setError(null);
 
     try {
-      console.log('[FHE] 准备初始化服务...');
+      console.log('[FHE] Preparing to initialize service...');
       await fheService.initialize();
 
       const serviceInstance = fheService.getInstance();
       if (!serviceInstance) {
-        throw new Error('FHE服务未初始化');
+        throw new Error('FHE service not initialized');
       }
 
       setInstance(serviceInstance);
       setStatus(FHEStatus.READY);
-      console.log('[FHE] 服务初始化完成');
+      console.log('[FHE] Service initialization completed');
     } catch (err) {
-      console.error('[FHE] 初始化失败', err);
+      console.error('[FHE] Initialization failed', err);
       setInstance(null);
-      setError(err instanceof Error ? err.message : '未知错误');
+      setError(err instanceof Error ? err.message : 'Unknown error');
       setStatus(FHEStatus.ERROR);
     }
   };
@@ -74,7 +74,7 @@ export function FHEProvider({ children }: FHEProviderProps) {
     return fheService.isReady();
   };
 
-  // 自动初始化
+  // Auto initialization
   useEffect(() => {
     initializeFHE();
   }, []);
@@ -94,11 +94,11 @@ export function FHEProvider({ children }: FHEProviderProps) {
   );
 }
 
-// 自定义hook
+// Custom hook
 export function useFHE() {
   const context = useContext(FHEContext);
   if (context === undefined) {
-    throw new Error('useFHE必须在FHEProvider内部使用');
+    throw new Error('useFHE must be used inside FHEProvider');
   }
   return context;
 }

@@ -64,7 +64,7 @@ const FHEProgressToast: React.FC<FHEProgressToastProps> = ({
               />
             </div>
             <Text type="tertiary" size="small">
-              {currentStep} / {totalSteps} 步骤
+              {currentStep} / {totalSteps} Steps
             </Text>
           </div>
         </Space>

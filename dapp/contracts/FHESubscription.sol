@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.24;
 
-// 导入FHE（全同态加密）相关库（用于加密Signal字段）
+// Import FHE (Fully Homomorphic Encryption) related libraries (for encrypting Signal fields)
 import {
     FHE,
     euint8,
@@ -12,12 +12,12 @@ import {
 import {SepoliaConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-// 导入通用类型定义
+// Import common type definitions
 import {TierPrice, Channel, Signal, DurationTier, Topic, AllowlistEntry} from "./common.sol";
-// 导入NFT工厂
+// Import NFT factory
 import {NFTFactory} from "./NFTFactory.sol";
 import {ChannelNFT} from "./ChannelNFT.sol";
-// 导入ReentrancyGuard
+// Import ReentrancyGuard
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 
@@ -38,16 +38,16 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
     error ArrayLengthMismatch();
     error ArrayTooLarge();
     error EmptyArray();
-    error InvalidValueRange(); // 无效的值范围（min > max等）
-    error AlreadyAccessed(); // 已经解密过此topic
-    error TopicChannelMismatch(); // topic与channel不匹配
+    error InvalidValueRange(); // Invalid value range (min > max, etc.)
+    error AlreadyAccessed(); // Already decrypted this topic
+    error TopicChannelMismatch(); // Topic does not match channel
 
 
-    // NFT工厂实例
+    // NFT factory instance
     NFTFactory public immutable NFT_FACTORY;
     
     constructor() Ownable(msg.sender) {
-        // 部署NFT工厂
+        // Deploy NFT factory
         NFT_FACTORY = new NFTFactory();
     }
 
@@ -55,20 +55,20 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
     uint256 private _currentTopicId = 0;
     uint256 private _currentSignalId = 0;
 
-    // 频道存储
+    // Channel storage
     mapping(uint256 channelId => Channel channel) private _channels;
-    // Topic存储
+    // Topic storage
     mapping(uint256 topicId => Topic topic) private _topics;
-    // signalId -> Signal 映射，便于按id查询信号
+    // signalId -> Signal mapping, for querying signals by id
     mapping(uint256 signalId => Signal signal) private _signals;
     
     // channel allowlist: channelId => (address => AllowlistEntry)
     mapping(uint256 channelId => mapping(address user => AllowlistEntry)) private _channelAllowlists;
-    // 跟踪每个频道的allowlist地址列表: channelId => address[]
+    // Track allowlist address list for each channel: channelId => address[]
     mapping(uint256 channelId => address[]) private _channelAllowlistAddresses;
-    // 检查用户是否已经提交过signal: topicId => (address => bool)
+    // Check if user has already submitted signal: topicId => (address => bool)
     mapping(uint256 topicId => mapping(address user => bool)) private _hasSubmitted;
-    // 记录用户是否已经解密过topic结果: topicId => (address => bool)
+    // Record if user has already decrypted topic result: topicId => (address => bool)
     mapping(uint256 topicId => mapping(address user => bool)) private _hasAccessed;
 
     event ChannelCreated(uint256 indexed id, address indexed owner, string info);
@@ -92,7 +92,7 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
     );
     event TopicResultAccessed(uint256 indexed topicId, address indexed user, uint256 tokenId);
 
-    // 已移除旧的订阅元数据结构，现在使用NFT合约管理订阅信息
+    // Removed old subscription metadata structure, now using NFT contract to manage subscription information
 
     error TierNotFound();
     error IncorrectPayment(uint256 expected, uint256 actual);
@@ -108,12 +108,12 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         channel.createdAt = block.timestamp;
         channel.lastPublishedAt = 0;
 
-        // 设置价格梯度
+        // Set price tiers
         for (uint256 i = 0; i < tiers.length; i++) {
             channel.tiers.push(tiers[i]);
         }
 
-        // 为频道创建NFT合约
+        // Create NFT contract for channel
         address nftContract = NFT_FACTORY.createChannelNFT(newId, info);
         channel.nftContract = nftContract;
 
@@ -126,14 +126,14 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
 
 
     /**
-     * @dev 创建新的topic
-     * @param channelId 频道ID
-     * @param ipfs IPFS哈希，描述topic内容
-     * @param endDate topic结束日期（时间戳）
-     * @param minValue 最小允许值
-     * @param maxValue 最大允许值
-     * @param defaultValue 默认值（当输入超出范围时使用）
-     * @return topicId 新创建的topic ID
+     * @dev Create new topic
+     * @param channelId Channel ID
+     * @param ipfs IPFS hash describing topic content
+     * @param endDate Topic end date (timestamp)
+     * @param minValue Minimum allowed value
+     * @param maxValue Maximum allowed value
+     * @param defaultValue Default value (used when input is out of range)
+     * @return topicId ID of newly created topic
      */
     function createTopic(
         uint256 channelId,
@@ -148,17 +148,17 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         if (channel.owner != msg.sender) revert NotChannelOwner();
         if (endDate <= block.timestamp) revert InvalidEndDate();
         
-        // 验证值范围配置
+        // Validate value range configuration
         if (minValue > maxValue) revert InvalidValueRange();
         if (defaultValue < minValue || defaultValue > maxValue) revert InvalidValueRange();
 
         uint256 newTopicId = ++_currentTopicId;
         
-        // 初始化FHE加密的零值
+        // Initialize FHE encrypted zero value
         euint64 zeroValue = FHE.asEuint64(0);
-        // 为合约地址授予零值的访问权限
+        // Grant zero value access permission to contract address
         FHE.allow(zeroValue, address(this));
-        // 赋予频道用有人权限
+        // Grant channel owner access permission
         FHE.allow(zeroValue,channel.owner);
 
         
@@ -170,18 +170,18 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         topic.creator = msg.sender;
         topic.createdAt = block.timestamp;
         
-        // 设置值范围配置
+        // Set value range configuration
         topic.minValue = minValue;
         topic.maxValue = maxValue;
         topic.defaultValue = defaultValue;
         
-        // 初始化计算相关字段
+        // Initialize calculation related fields
         topic.totalWeightedValue = zeroValue;
         topic.average = zeroValue;
         topic.totalWeight = 0;
         topic.submissionCount = 0;
         
-        // 将新topic ID添加到channel的索引数组中
+        // Add new topic ID to channel's index array
         channel.topicIds.push(newTopicId);
 
         emit TopicCreated(newTopicId, channelId, msg.sender, ipfs, endDate);
@@ -190,10 +190,10 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
 
 
     /**
-     * @dev 批量添加地址到channel的allowlist
+     * @dev Batch add addresses to channel's allowlist
      * @param channelId channel ID
-     * @param users 用户地址数组
-     * @param weights 用户权重数组（明文）
+     * @param users Array of user addresses
+     * @param weights Array of user weights (plaintext)
      */
     function batchAddToAllowlist(
         uint256 channelId,
@@ -204,18 +204,18 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         if (channel.channelId == 0) revert ChannelNotFound();
         if (channel.owner != msg.sender) revert NotChannelOwner();
 
-        // 安全检查
+        // Security checks
         if (users.length == 0) revert EmptyArray();
-        if (users.length > 100) revert ArrayTooLarge(); // 限制批量操作大小以防止gas用尽
+        if (users.length > 100) revert ArrayTooLarge(); // Limit batch operation size to prevent gas exhaustion
         
-        // 检查数组长度一致性
+        // Check array length consistency
         if (users.length != weights.length) {
             revert ArrayLengthMismatch();
         }
 
-        // 批量处理每个用户
+        // Batch process each user
         for (uint256 i = 0; i < users.length; i++) {
-            // 如果用户不在allowlist中，添加到地址列表
+            // If user is not in allowlist, add to address list
             if (!_channelAllowlists[channelId][users[i]].exists) {
                 _channelAllowlistAddresses[channelId].push(users[i]);
             }
@@ -232,40 +232,40 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
 
 
     /**
-     * @dev 批量从allowlist中移除地址
+     * @dev Batch remove addresses from allowlist
      * @param channelId channel ID
-     * @param users 用户地址数组
+     * @param users Array of user addresses
      */
     function batchRemoveFromAllowlist(uint256 channelId, address[] calldata users) external {
         Channel storage channel = _channels[channelId];
         if (channel.channelId == 0) revert ChannelNotFound();
         if (channel.owner != msg.sender) revert NotChannelOwner();
 
-        // 安全检查
+        // Security checks
         if (users.length == 0) revert EmptyArray();
-        if (users.length > 100) revert ArrayTooLarge(); // 限制批量操作大小以防止gas用尽
+        if (users.length > 100) revert ArrayTooLarge(); // Limit batch operation size to prevent gas exhaustion
 
-        // 批量移除用户
+        // Batch remove users
         for (uint256 i = 0; i < users.length; i++) {
-            // 从allowlist中移除
+            // Remove from allowlist
             delete _channelAllowlists[channelId][users[i]];
             
-            // 从地址列表中移除
+            // Remove from address list
             _removeFromAddressList(channelId, users[i]);
             
             emit AllowlistUpdated(channelId, users[i], false);
         }
     }
     /**
-     * @dev 内部函数：从地址列表中移除指定地址
-     * @param channelId 频道ID
-     * @param user 要移除的用户地址
+     * @dev Internal function: remove specified address from address list
+     * @param channelId Channel ID
+     * @param user User address to remove
      */
     function _removeFromAddressList(uint256 channelId, address user) internal {
         address[] storage addresses = _channelAllowlistAddresses[channelId];
         for (uint256 i = 0; i < addresses.length; i++) {
             if (addresses[i] == user) {
-                // 将最后一个元素移到当前位置，然后删除最后一个元素
+                // Move the last element to current position, then delete the last element
                 addresses[i] = addresses[addresses.length - 1];
                 addresses.pop();
                 break;
@@ -274,9 +274,9 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev 获取指定频道的所有allowlist条目
-     * @param channelId 频道ID
-     * @return allowlist 所有allowlist条目的数组
+     * @dev Get all allowlist entries for specified channel
+     * @param channelId Channel ID
+     * @return allowlist Array of all allowlist entries
      */
     function getAllowlist(uint256 channelId) external view returns (AllowlistEntry[] memory) {
         Channel storage channel = _channels[channelId];
@@ -293,9 +293,9 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev 获取指定频道的allowlist地址数量
-     * @param channelId 频道ID
-     * @return count allowlist中的地址数量
+     * @dev Get number of addresses in allowlist for specified channel
+     * @param channelId Channel ID
+     * @return count Number of addresses in allowlist
      */
     function getAllowlistCount(uint256 channelId) external view returns (uint256) {
         Channel storage channel = _channels[channelId];
@@ -305,12 +305,12 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev 分页获取allowlist条目（节省gas，避免返回大量数据）
-     * @param channelId 频道ID
-     * @param offset 偏移量
-     * @param limit 限制数量
-     * @return allowlist 指定范围的allowlist条目
-     * @return total 总条目数
+     * @dev Get allowlist entries with pagination (save gas, avoid returning large amounts of data)
+     * @param channelId Channel ID
+     * @param offset Offset
+     * @param limit Limit count
+     * @return allowlist Allowlist entries in specified range
+     * @return total Total number of entries
      */
     function getAllowlistPaginated(
         uint256 channelId, 
@@ -323,19 +323,19 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         address[] storage addresses = _channelAllowlistAddresses[channelId];
         total = addresses.length;
         
-        // 检查偏移量
+        // Check offset
         if (offset >= total) {
             return (new AllowlistEntry[](0), total);
         }
         
-        // 计算实际返回的数量
+        // Calculate actual number to return
         uint256 end = offset + limit;
         if (end > total) {
             end = total;
         }
         uint256 actualLength = end - offset;
         
-        // 创建结果数组
+        // Create result array
         allowlist = new AllowlistEntry[](actualLength);
         for (uint256 i = 0; i < actualLength; i++) {
             allowlist[i] = _channelAllowlists[channelId][addresses[offset + i]];
@@ -344,49 +344,49 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         return (allowlist, total);
     }
     /**
-    * @dev 提交signal到指定topic
+    * @dev Submit signal to specified topic
     * @param topicId topic ID
-    * @param inputValue signal值（0-255，对应 euint8 的外部密文）
-    * @param proof FHE证明
-    * @return signalId 新创建的signal ID
+    * @param inputValue Signal value (0-255, corresponds to external ciphertext of euint8)
+    * @param proof FHE proof
+    * @return signalId ID of newly created signal
     */
     function submitSignal(
         uint256 topicId,
         externalEuint8 inputValue,
         bytes calldata proof
     ) external returns (uint256) {
-        // 基础校验
+        // Basic validation
         Topic storage topic = _topics[topicId];
         if (topic.topicId == 0) revert TopicNotFound();
         if (block.timestamp >= topic.endDate) revert TopicExpired();
 
-        // allowlist 与重复提交校验
+        // allowlist and duplicate submission validation
         Channel storage channel = _channels[topic.channelId];
         AllowlistEntry storage allowlistEntry = _channelAllowlists[topic.channelId][msg.sender];
         
-        // channel的owner不需要在白名单中也可以提交signal
+        // Channel owner doesn't need to be in whitelist to submit signal
         if (!allowlistEntry.exists && channel.owner != msg.sender) {
             revert NotInAllowlist();
         }
         if (_hasSubmitted[topicId][msg.sender]) revert AlreadySubmitted();
 
-        // 外部密文转 euint8（链下加密 -> 链上密文）
+        // External ciphertext to euint8 (off-chain encryption -> on-chain ciphertext)
         euint8 value = FHE.fromExternal(inputValue, proof);
         
-        // 为合约地址授予value的访问权限
+        // Grant value access permission to contract address
         FHE.allow(value, address(this));
 
-        // 用 euint8 常量进行比较与选择（位宽对齐，避免库重载不匹配）
+        // Use euint8 constants for comparison and selection (bit width alignment, avoid library overload mismatch)
         euint8 minE = FHE.asEuint8(topic.minValue);
         euint8 maxE = FHE.asEuint8(topic.maxValue);
         euint8 defE = FHE.asEuint8(topic.defaultValue);
 
-        // 若小于最小值 -> 使用默认值
+        // If less than minimum value -> use default value
         value = FHE.select(FHE.lt(value, minE), defE, value);
-        // 若大于最大值 -> 使用默认值
+        // If greater than maximum value -> use default value
         value = FHE.select(FHE.gt(value, maxE), defE, value);
 
-        // 创建并保存 Signal
+        // Create and save Signal
         uint256 newSignalId = ++_currentSignalId;
         _signals[newSignalId] = Signal({
             signalId: newSignalId,
@@ -397,62 +397,62 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
             submittedAt: block.timestamp
         });
 
-         // 将新signal ID添加到topic的索引数组中
+         // Add new signal ID to topic's index array
          topic.signalIds.push(newSignalId);
          
-         // 标记提交 & 更新加权平均（内部已做 euint64 对齐）
+         // Mark submission & update weighted average (internally already euint64 aligned)
          _hasSubmitted[topicId][msg.sender] = true;
          
-         // 如果用户在allowlist中，使用其权重；否则使用默认权重1
+         // If user is in allowlist, use their weight; otherwise use default weight 1
          uint64 weight = allowlistEntry.exists ? allowlistEntry.weight : 1;
          _updateAverage(topicId, value, weight);
  
-         // 事件
+         // Events
          emit SignalSubmitted(topicId, newSignalId, msg.sender);
          return newSignalId;
     }
 
 
     /**
-     * @dev 内部函数：更新topic的加权平均值
+     * @dev Internal function: update topic's weighted average
      * @param topicId topic ID
-     * @param value 新提交的值（FHE加密）
-     * @param weight 提交者的明文权重
+     * @param value Newly submitted value (FHE encrypted)
+     * @param weight Submitter's plaintext weight
      */
     function _updateAverage(uint256 topicId, euint8 value, uint64 weight) internal {
         Topic storage topic = _topics[topicId];
         
-        // 将uint8的value扩展为uint64进行计算
+        // Extend uint8 value to uint64 for calculation
         euint64 valueAs64 = FHE.asEuint64(value);
         
-        // 为合约地址授予valueAs64的访问权限
+        // Grant valueAs64 access permission to contract address
         FHE.allow(valueAs64, address(this));
         
-        // 计算加权值：weight * value（权重是明文，可以直接相乘）
+        // Calculate weighted value: weight * value (weight is plaintext, can be multiplied directly)
         euint64 weightedValue = FHE.mul(valueAs64, weight);
         
-        // 为合约地址授予weightedValue的访问权限
+        // Grant weightedValue access permission to contract address
         FHE.allow(weightedValue, address(this));
         
-        // 为合约地址授予totalWeightedValue的访问权限（如果不是初始化）
+        // Grant totalWeightedValue access permission to contract address (if not initialization)
         if (topic.submissionCount > 0) {
             FHE.allow(topic.totalWeightedValue, address(this));
         }
         
-        // 更新总加权值和总权重
+        // Update total weighted value and total weight
         topic.totalWeightedValue = FHE.add(topic.totalWeightedValue, weightedValue);
-        // 为合约地址授予更新后的totalWeightedValue的访问权限
+        // Grant updated totalWeightedValue access permission to contract address
         FHE.allow(topic.totalWeightedValue, address(this));
         topic.totalWeight += weight;
 
-        // 更新提交次数
+        // Update submission count
         topic.submissionCount++;
         
-        // 计算真正的加权平均值：sum(weight * value) / sum(weight)
-        // 这样结果就能保持在原始值的范围内
+        // Calculate true weighted average: sum(weight * value) / sum(weight)
+        // This way the result can stay within the original value range
         if (topic.totalWeight > 0) {
             topic.average = FHE.div(topic.totalWeightedValue, uint64(topic.totalWeight));
-            // 为合约地址授予average的访问权限
+            // Grant average access permission to contract address
             FHE.allow(topic.average, address(this));
         }
         
@@ -469,48 +469,48 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev 获取topic信息
+     * @dev Get topic information
      * @param topicId topic ID
-     * @return topic topic信息
+     * @return topic topic information
      */
     function getTopic(uint256 topicId) external view returns (Topic memory) {
         return _topics[topicId];
     }
 
     /**
-     * @dev 检查用户是否在channel的allowlist中
+     * @dev Check if user is in channel's allowlist
      * @param channelId channel ID
-     * @param user 用户地址
-     * @return 是否在allowlist中
+     * @param user User address
+     * @return Whether in allowlist
      */
     function isInAllowlist(uint256 channelId, address user) external view returns (bool) {
         return _channelAllowlists[channelId][user].exists;
     }
 
     /**
-     * @dev 检查用户是否已经提交过signal
+     * @dev Check if user has already submitted signal
      * @param topicId topic ID
-     * @param user 用户地址
-     * @return 是否已提交
+     * @param user User address
+     * @return Whether already submitted
      */
     function hasSubmitted(uint256 topicId, address user) external view returns (bool) {
         return _hasSubmitted[topicId][user];
     }
 
     /**
-     * @dev 检查用户是否已经解密访问过topic结果
+     * @dev Check if user has already decrypted and accessed topic result
      * @param topicId topic ID
-     * @param user 用户地址
-     * @return 是否已访问
+     * @param user User address
+     * @return Whether already accessed
      */
     function hasAccessedTopic(uint256 topicId, address user) external view returns (bool) {
         return _hasAccessed[topicId][user];
     }
 
     /**
-     * @dev 获取频道下的topic数量
-     * @param channelId 频道ID
-     * @return count topic数量
+     * @dev Get number of topics under channel
+     * @param channelId Channel ID
+     * @return count Number of topics
      */
     function getChannelTopicCount(uint256 channelId) external view returns (uint256) {
         Channel storage channel = _channels[channelId];
@@ -519,9 +519,9 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev 获取topic下的signal数量
+     * @dev Get number of signals under topic
      * @param topicId topic ID
-     * @return count signal数量
+     * @return count Number of signals
      */
     function getTopicSignalCount(uint256 topicId) external view returns (uint256) {
         Topic storage topic = _topics[topicId];
@@ -531,9 +531,9 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
 
 
     /**
-     * @dev 获取topic下的所有signals（高效版本，使用索引数组）
+     * @dev Get all signals under topic (efficient version, using index array)
      * @param topicId topic ID
-     * @return signals topic下的所有signals
+     * @return signals All signals under topic
      */
     function getTopicSignals(uint256 topicId) external view returns (Signal[] memory) {
         Topic storage topic = _topics[topicId];
@@ -550,9 +550,9 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev 获取频道下的所有topics（高效版本，使用索引数组）
-     * @param channelId 频道ID
-     * @return topics 频道下的所有topics
+     * @dev Get all topics under channel (efficient version, using index array)
+     * @param channelId Channel ID
+     * @return topics All topics under channel
      */
     function getChannelTopics(uint256 channelId) external view returns (Topic[] memory) {
         Channel storage channel = _channels[channelId];
@@ -569,12 +569,12 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev 分页获取topic下的signals
+     * @dev Get signals under topic with pagination
      * @param topicId topic ID
-     * @param offset 偏移量
-     * @param limit 限制数量
-     * @return signals 指定范围的signals
-     * @return total 总数量
+     * @param offset Offset
+     * @param limit Limit count
+     * @return signals Signals in specified range
+     * @return total Total count
      */
     function getTopicSignalsPaginated(
         uint256 topicId,
@@ -587,19 +587,19 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         uint256[] storage signalIds = topic.signalIds;
         total = signalIds.length;
 
-        // 检查偏移量
+        // Check offset
         if (offset >= total) {
             return (new Signal[](0), total);
         }
 
-        // 计算实际返回的数量
+        // Calculate actual number to return
         uint256 end = offset + limit;
         if (end > total) {
             end = total;
         }
         uint256 actualLength = end - offset;
 
-        // 创建结果数组
+        // Create result array
         signals = new Signal[](actualLength);
         for (uint256 i = 0; i < actualLength; i++) {
             signals[i] = _signals[signalIds[offset + i]];
@@ -609,12 +609,12 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev 分页获取频道下的topics
-     * @param channelId 频道ID
-     * @param offset 偏移量
-     * @param limit 限制数量
-     * @return topics 指定范围的topics
-     * @return total 总数量
+     * @dev Get topics under channel with pagination
+     * @param channelId Channel ID
+     * @param offset Offset
+     * @param limit Limit count
+     * @return topics Topics in specified range
+     * @return total Total count
      */
     function getChannelTopicsPaginated(
         uint256 channelId,
@@ -627,19 +627,19 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         uint256[] storage topicIds = channel.topicIds;
         total = topicIds.length;
 
-        // 检查偏移量
+        // Check offset
         if (offset >= total) {
             return (new Topic[](0), total);
         }
 
-        // 计算实际返回的数量
+        // Calculate actual number to return
         uint256 end = offset + limit;
         if (end > total) {
             end = total;
         }
         uint256 actualLength = end - offset;
 
-        // 创建结果数组
+        // Create result array
         topics = new Topic[](actualLength);
         for (uint256 i = 0; i < actualLength; i++) {
             topics[i] = _topics[topicIds[offset + i]];
@@ -657,7 +657,7 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         Channel storage channel = _channels[channelId];
         if (channel.channelId == 0) revert ChannelNotFound();
 
-        // 查找对应等级与价格
+        // Find corresponding tier and price
         uint256 price = 0;
         uint256 foundIndex = 0;
         bool found = false;
@@ -672,10 +672,10 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
         if (!found) revert TierNotFound();
         if (msg.value != price) revert IncorrectPayment(price, msg.value);
 
-        // 计算过期时间
+        // Calculate expiration time
         uint256 durationSeconds = _durationForTier(tier);
 
-        // 通过NFT工厂铸造订阅NFT
+        // Mint subscription NFT through NFT factory
         uint256 tokenId = NFT_FACTORY.mintSubscriptionNFT(
             channelId,
             msg.sender,
@@ -683,10 +683,10 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
             durationSeconds
         );
 
-        // 订阅人数 +1
+        // Subscriber count +1
         channel.tiers[foundIndex].subscribers += 1;
 
-        // 付款转给频道所有者
+        // Transfer payment to channel owner
         (bool success, ) = payable(channel.owner).call{value: price}("");
         if (!success) revert TransferFailed();
 
@@ -696,8 +696,8 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev 获取订阅信息（从对应的NFT合约中获取）
-     * @param channelId 频道ID
+     * @dev Get subscription information (from corresponding NFT contract)
+     * @param channelId Channel ID
      * @param tokenId NFT ID
      */
     function getSubscription(uint256 channelId, uint256 tokenId)
@@ -713,8 +713,8 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
     }
     
     /**
-     * @dev 检查订阅是否有效
-     * @param channelId 频道ID
+     * @dev Check if subscription is valid
+     * @param channelId Channel ID
      * @param tokenId NFT ID
      */
     function isSubscriptionValid(uint256 channelId, uint256 tokenId)
@@ -730,8 +730,8 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
     }
     
     /**
-     * @dev 获取频道的NFT合约地址
-     * @param channelId 频道ID
+     * @dev Get channel's NFT contract address
+     * @param channelId Channel ID
      */
     function getChannelNFTContract(uint256 channelId)
         external
@@ -760,48 +760,48 @@ contract FHESubscriptionManager is SepoliaConfig, Ownable, ReentrancyGuard {
 
 
     /**
-     * @dev 为订阅用户获取topic的加密平均值（需要客户端解密）
-     * @param channelId 频道ID  
+     * @dev Get encrypted average value of topic for subscribed users (requires client-side decryption)
+     * @param channelId Channel ID
      * @param topicId topic ID
-     * @param tokenId 用户的订阅NFT ID
+     * @param tokenId User's subscription NFT ID
      */
     function accessTopicResult(
         uint256 channelId,
         uint256 topicId, 
         uint256 tokenId
     ) external  {
-        // 验证channel存在
+        // Verify channel exists
         Channel storage channel = _channels[channelId];
         if (channel.channelId == 0) revert ChannelNotFound();
         
-        // 验证topic存在且属于指定频道
+        // Verify topic exists and belongs to specified channel
         Topic storage topic = _topics[topicId];
         if (topic.topicId == 0) revert TopicNotFound();
         if (topic.channelId != channelId) revert TopicChannelMismatch();
         
-        // 检查用户是否已经解密过此topic
+        // Check if user has already decrypted this topic
         if (_hasAccessed[topicId][msg.sender]) revert AlreadyAccessed();
         
-        // 验证用户有有效的订阅
+        // Verify user has valid subscription
         
         ChannelNFT nftContract = ChannelNFT(channel.nftContract);
         if (nftContract.ownerOf(tokenId) != msg.sender) revert NotSubscriptionOwner();
         if (!nftContract.isSubscriptionValid(tokenId)) revert SubscriptionExpired();
 
-        // 记录用户已经访问过此topic
+        // Record that user has accessed this topic
         _hasAccessed[topicId][msg.sender] = true;
 
-        // 开放访问权限 用户可以链下解密
+        // Grant access permission, user can decrypt off-chain
         FHE.allow(topic.average, msg.sender);
         
-        // 发出访问事件
+        // Emit access event
         emit TopicResultAccessed(topicId, msg.sender, tokenId);
     }
 
     /**
-     * @dev 重置用户的topic访问记录（仅频道所有者可调用）
+     * @dev Reset user's topic access record (only callable by channel owner)
      * @param topicId topic ID
-     * @param user 用户地址
+     * @param user User address
      */
     function resetTopicAccess(uint256 topicId, address user) external {
         Topic storage topic = _topics[topicId];

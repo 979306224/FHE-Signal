@@ -3,7 +3,7 @@ import { FHESubscriptionManager, NFTFactory } from "../types";
 import { expect } from "chai";
 import { deployFixture, getSigners, DurationTier, type Signers } from "./test-utils";
 
-describe("FHESubscriptionManager - 访问控制和权限管理", function () {
+describe("FHESubscriptionManager - Access Control and Permission Management", function () {
   let signers: Signers;
   let subscriptionManager: FHESubscriptionManager;
   let subscriptionManagerAddress: string;
@@ -18,9 +18,9 @@ describe("FHESubscriptionManager - 访问控制和权限管理", function () {
   });
 
   beforeEach(async () => {
-    // 检查是否在FHEVM模拟环境中运行
+    // Check if running in FHEVM mock environment
     if (!fhevm.isMock) {
-      throw new Error(`此测试套件只能在FHEVM模拟环境中运行`);
+      throw new Error(`This test suite can only run in FHEVM mock environment`);
     }
     ({ 
       subscriptionManager, 
@@ -29,9 +29,9 @@ describe("FHESubscriptionManager - 访问控制和权限管理", function () {
       nftFactoryAddress
     } = await deployFixture());
 
-    // 创建频道、topic和订阅
+    // Create channel, topic and subscription
     const tiers = [{ tier: DurationTier.Month, price: ethers.parseEther("0.1"), subscribers: 0 }];
-    await subscriptionManager.connect(signers.alice).createChannel("测试频道", tiers);
+    await subscriptionManager.connect(signers.alice).createChannel("Test Channel", tiers);
     channelId = 1;
     
     const endDate = Math.floor(Date.now() / 1000) + 86400;
@@ -40,13 +40,13 @@ describe("FHESubscriptionManager - 访问控制和权限管理", function () {
     );
     topicId = 1;
     
-    // Bob订阅频道
+    // Bob subscribes to channel
     await subscriptionManager.connect(signers.bob).subscribe(channelId, DurationTier.Month, {
       value: ethers.parseEther("0.1")
     });
     tokenId = 1;
     
-    // 添加用户到allowlist并提交signal
+    // Add user to allowlist and submit signal
     await subscriptionManager.connect(signers.alice)
       .batchAddToAllowlist(channelId, [signers.charlie.address], [100]);
     
@@ -62,42 +62,42 @@ describe("FHESubscriptionManager - 访问控制和权限管理", function () {
     );
   });
 
-  it("应该允许有效订阅用户访问topic结果", async function () {
+  it("Should allow valid subscription user to access topic result", async function () {
     const tx = await subscriptionManager.connect(signers.bob)
       .accessTopicResult(channelId, topicId, tokenId);
     
-    // 验证事件
+    // Verify event
     await expect(tx)
       .to.emit(subscriptionManager, "TopicResultAccessed")
       .withArgs(topicId, signers.bob.address, tokenId);
     
-    // 验证访问状态
+    // Verify access status
     expect(await subscriptionManager.hasAccessedTopic(topicId, signers.bob.address)).to.be.true;
   });
 
-  it("应该拒绝非NFT所有者访问", async function () {
+  it("Should reject non-NFT owner access", async function () {
     await expect(
       subscriptionManager.connect(signers.charlie)
         .accessTopicResult(channelId, topicId, tokenId)
     ).to.be.revertedWithCustomError(subscriptionManager, "NotSubscriptionOwner");
   });
 
-  it("应该拒绝重复访问", async function () {
-    // 第一次访问
+  it("Should reject duplicate access", async function () {
+    // First access
     await subscriptionManager.connect(signers.bob)
       .accessTopicResult(channelId, topicId, tokenId);
     
-    // 第二次访问应该失败
+    // Second access should fail
     await expect(
       subscriptionManager.connect(signers.bob)
         .accessTopicResult(channelId, topicId, tokenId)
     ).to.be.revertedWithCustomError(subscriptionManager, "AlreadyAccessed");
   });
 
-  it("应该拒绝topic和频道不匹配的访问", async function () {
-    // 创建另一个频道和topic
+  it("Should reject access when topic and channel don't match", async function () {
+    // Create another channel and topic
     const tiers = [{ tier: DurationTier.Month, price: ethers.parseEther("0.1"), subscribers: 0 }];
-    await subscriptionManager.connect(signers.david).createChannel("另一个频道", tiers);
+    await subscriptionManager.connect(signers.david).createChannel("Another Channel", tiers);
     const anotherChannelId = 2;
     
     const endDate = Math.floor(Date.now() / 1000) + 86400;
@@ -106,42 +106,42 @@ describe("FHESubscriptionManager - 访问控制和权限管理", function () {
     );
     const anotherTopicId = 2;
     
-    // 尝试用频道1的tokenId去访问频道2的topic（应该因为topic和channel不匹配而失败）
-    // 这里我们传入正确的channelId，但是传入错误的topicId（属于不同频道）
+    // Try to use channel 1's tokenId to access channel 2's topic (should fail due to topic and channel mismatch)
+    // Here we pass the correct channelId, but the wrong topicId (belonging to a different channel)
     await expect(
       subscriptionManager.connect(signers.bob)
         .accessTopicResult(channelId, anotherTopicId, tokenId)
     ).to.be.revertedWithCustomError(subscriptionManager, "TopicChannelMismatch");
   });
 
-  it("只有频道所有者能重置访问记录", async function () {
-    // Bob访问topic
+  it("Only channel owner can reset access records", async function () {
+    // Bob accesses topic
     await subscriptionManager.connect(signers.bob)
       .accessTopicResult(channelId, topicId, tokenId);
     
     expect(await subscriptionManager.hasAccessedTopic(topicId, signers.bob.address)).to.be.true;
     
-    // 频道所有者重置访问记录
+    // Channel owner resets access record
     await subscriptionManager.connect(signers.alice)
       .resetTopicAccess(topicId, signers.bob.address);
     
     expect(await subscriptionManager.hasAccessedTopic(topicId, signers.bob.address)).to.be.false;
     
-    // 非频道所有者不能重置
+    // Non-channel owner cannot reset
     await expect(
       subscriptionManager.connect(signers.bob)
         .resetTopicAccess(topicId, signers.bob.address)
     ).to.be.revertedWithCustomError(subscriptionManager, "NotChannelOwner");
   });
 
-  it("应该拒绝无效的topic ID", async function () {
+  it("Should reject invalid topic ID", async function () {
     await expect(
       subscriptionManager.connect(signers.bob)
         .accessTopicResult(channelId, 999, tokenId)
     ).to.be.revertedWithCustomError(subscriptionManager, "TopicNotFound");
   });
 
-  it("应该拒绝无效的频道ID", async function () {
+  it("Should reject invalid channel ID", async function () {
     await expect(
       subscriptionManager.connect(signers.bob)
         .accessTopicResult(999, topicId, tokenId)

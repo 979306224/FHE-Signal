@@ -15,11 +15,12 @@ function Home() {
           FHE-Signal
         </Title>
         <Title heading={3} style={{ fontWeight: 'normal', color: 'var(--semi-color-text-2)', marginBottom: '30px' }}>
-          隐私保护的信号订阅平台
+          Privacy-Preserving Signal Subscription Platform
         </Title>
         <Paragraph style={{ fontSize: '18px', color: 'var(--semi-color-text-2)', maxWidth: '700px', margin: '0 auto 40px' }}>
-          通过全同态加密(FHE)技术，让信号提供者能够在完全保护隐私的情况下贡献数据。
-          订阅者只能获得加密后的聚合结果，无法知道单个信号的具体值。
+          Through Fully Homomorphic Encryption (FHE) technology, signal providers can contribute data
+          while maintaining complete privacy protection. Subscribers only receive encrypted aggregated
+          results without knowing individual signal values.
         </Paragraph>
         <Button
           type="primary"
@@ -27,7 +28,7 @@ function Home() {
           style={{ padding: '12px 40px', fontSize: '16px' }}
           onClick={() => navigate('/channelList')}
         >
-          探索频道
+          Explore Channels
         </Button>
       </div>
 
@@ -37,9 +38,10 @@ function Home() {
           bodyStyle={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
         >
           <IconLock size="extra-large" style={{ color: 'var(--semi-color-primary)', marginBottom: '20px' }} />
-          <Title heading={4}>完全隐私保护</Title>
+          <Title heading={4}>Complete Privacy Protection</Title>
           <Text style={{ color: 'var(--semi-color-text-2)', marginTop: '10px' }}>
-            使用FHE加密技术，信号发送者之间的数据完全隔离，确保个体隐私不被泄露
+            Using FHE encryption technology, data between signal senders is completely isolated,
+            ensuring individual privacy is never compromised
           </Text>
         </Card>
 
@@ -48,9 +50,10 @@ function Home() {
           bodyStyle={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
         >
           <IconUserGroup size="extra-large" style={{ color: 'var(--semi-color-success)', marginBottom: '20px' }} />
-          <Title heading={4}>权重投票机制</Title>
+          <Title heading={4}>Weighted Voting Mechanism</Title>
           <Text style={{ color: 'var(--semi-color-text-2)', marginTop: '10px' }}>
-            频道所有者可以为不同用户设置权重，实现更灵活的信号聚合方式
+            Channel owners can set weights for different users, enabling more flexible
+            signal aggregation methods
           </Text>
         </Card>
 
@@ -59,38 +62,39 @@ function Home() {
           bodyStyle={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
         >
           <IconHistogram size="extra-large" style={{ color: 'var(--semi-color-warning)', marginBottom: '20px' }} />
-          <Title heading={4}>加密聚合结果</Title>
+          <Title heading={4}>Encrypted Aggregated Results</Title>
           <Text style={{ color: 'var(--semi-color-text-2)', marginTop: '10px' }}>
-            订阅者获得的是经过加密计算的平均值，既保护隐私又提供有价值的洞察
+            Subscribers receive encrypted computed averages that protect privacy
+            while providing valuable insights
           </Text>
         </Card>
       </div>
 
       <div style={{ background: 'var(--semi-color-bg-2)', padding: '40px', borderRadius: '8px', border: '1px solid var(--semi-color-border)' }}>
-        <Title heading={3} style={{ marginBottom: '20px', color: 'var(--semi-color-text-0)' }}>工作原理</Title>
+        <Title heading={3} style={{ marginBottom: '20px', color: 'var(--semi-color-text-0)' }}>How It Works</Title>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
           <div>
-            <Title heading={5}>1. 创建频道与主题</Title>
+            <Title heading={5}>1. Create Channels & Topics</Title>
             <Paragraph style={{ color: 'var(--semi-color-text-2)' }}>
-              频道所有者创建频道并发布主题(Topic)，设置信号值的范围和默认值
+              Channel owners create channels and publish topics, setting signal value ranges and default values
             </Paragraph>
           </div>
           <div>
-            <Title heading={5}>2. 提交加密信号</Title>
+            <Title heading={5}>2. Submit Encrypted Signals</Title>
             <Paragraph style={{ color: 'var(--semi-color-text-2)' }}>
-              白名单用户使用FHE加密技术提交信号，数据在链上保持加密状态
+              Whitelist users submit signals using FHE encryption technology, keeping data encrypted on-chain
             </Paragraph>
           </div>
           <div>
-            <Title heading={5}>3. 链上加密计算</Title>
+            <Title heading={5}>3. On-Chain Encrypted Computation</Title>
             <Paragraph style={{ color: 'var(--semi-color-text-2)' }}>
-              智能合约在密文状态下计算加权平均值，无需解密原始数据
+              Smart contracts compute weighted averages in encrypted state without decrypting original data
             </Paragraph>
           </div>
           <div>
-            <Title heading={5}>4. 订阅获取结果</Title>
+            <Title heading={5}>4. Subscribe to Get Results</Title>
             <Paragraph style={{ color: 'var(--semi-color-text-2)' }}>
-              订阅用户通过NFT凭证访问聚合结果，获得有价值的集体智慧
+              Subscribers access aggregated results through NFT credentials, gaining valuable collective wisdom
             </Paragraph>
           </div>
         </div>

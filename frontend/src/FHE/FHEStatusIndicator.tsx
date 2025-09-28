@@ -16,36 +16,36 @@ export function FHEStatusIndicator({ showLabel = true, size = 'small' }: FHEStat
         return {
           color: 'grey' as any,
           icon: <IconClock />,
-          text: 'FHE未初始化',
-          description: 'FHE SDK尚未初始化'
+          text: 'FHE Not Initialized',
+          description: 'FHE SDK not yet initialized'
         };
       case FHEStatus.LOADING:
         return {
           color: 'blue' as any,
           icon: <IconRefresh spin />,
-          text: 'FHE初始化中',
-          description: '正在加载FHE SDK...'
+          text: 'FHE Initializing',
+          description: 'Loading FHE SDK...'
         };
       case FHEStatus.READY:
         return {
           color: 'teal' as any,
           icon: <IconTick />,
-          text: 'FHE已就绪',
-          description: 'FHE SDK已成功初始化'
+          text: 'FHE Ready',
+          description: 'FHE SDK successfully initialized'
         };
       case FHEStatus.ERROR:
         return {
           color: 'red' as any,
           icon: <IconClose  />,
-          text: 'FHE初始化失败',
-          description: error || '初始化过程中发生错误'
+          text: 'FHE Initialization Failed',
+          description: error || 'Error occurred during initialization'
         };
       default:
         return {
           color: 'grey',
           icon: <IconClock />,
-          text: '未知状态',
-          description: '无法确定FHE状态'
+          text: 'Unknown Status',
+          description: 'Unable to determine FHE status'
         };
     }
   };

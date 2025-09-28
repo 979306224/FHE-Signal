@@ -9,23 +9,23 @@ function Navigation() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // 使用useMemo缓存导航项配置
+  // Use useMemo to cache navigation item configuration
   const items = useMemo(() => [
     {
       itemKey: '/',
-      text: '首页',
+      text: 'Home',
       icon: <IconHome />,
       to: '/'
     },
     {
       itemKey: '/channelList',
-      text: 'Channel列表',
+      text: 'Channel List',
       icon: <IconInfoCircle />,
       to: '/channelList'
     }
   ], []);
 
-  // 移除 to 属性，因为 Nav 组件不识别这个属性
+  // Remove 'to' property as Nav component doesn't recognize this attribute
   const navItems = useMemo(() => 
     items.map(({ to, ...item }) => item), [items]);
 

@@ -39,7 +39,7 @@ async function fetchChannel(channelId: number): Promise<ChannelListItem | null> 
 
     return { channel, metadata, metadataError };
   } catch (error) {
-    console.error(`获取频道 ${channelId} 失败:`, error);
+    console.error(`Failed to fetch channel ${channelId}:`, error);
     return null;
   }
 }
@@ -68,7 +68,7 @@ function ChannelList({ refreshKey }: ChannelListProps) {
 
   const content = useMemo(() => {
     if (loadingIds.length === 0 && items.length === 0) {
-      return <Typography.Text>暂无可用频道。</Typography.Text>;
+      return <Typography.Text>No channels available.</Typography.Text>;
     }
 
     if (items.length === 0) {
@@ -95,7 +95,7 @@ function ChannelList({ refreshKey }: ChannelListProps) {
           return (
             <List.Item key={channel.channelId.toString()}>
               <Card
-                title={metadata?.projectName ?? `频道 #${channel.channelId.toString()}`}
+                title={metadata?.projectName ?? `Channel #${channel.channelId.toString()}`}
                 headerExtraContent={<Tag type="solid">#{channel.channelId.toString()}</Tag>}
               >
                 <Space align="start" spacing="medium">
@@ -103,15 +103,15 @@ function ChannelList({ refreshKey }: ChannelListProps) {
                     <IconHash />
                   </Avatar>
                   <Space vertical spacing="small" style={{ width: '100%' }}>
-                    <Typography.Text type="tertiary">创建时间：{createdAt}</Typography.Text>
+                    <Typography.Text type="tertiary">Created: {createdAt}</Typography.Text>
                     <Typography.Paragraph ellipsis={{ rows: 3 }}>
-                      {metadata?.description ?? '未找到 IPFS 元数据，显示合约原始信息。'}
+                      {metadata?.description ?? 'IPFS metadata not found, displaying raw contract information.'}
                     </Typography.Paragraph>
                     {metadataError && (
-                      <Typography.Text type="danger">IPFS 元数据加载失败：{metadataError}</Typography.Text>
+                      <Typography.Text type="danger">Failed to load IPFS metadata: {metadataError}</Typography.Text>
                     )}
-                    <Divider margin="12px 0">订阅档位</Divider>
-                    {tierCount === 0 && <Typography.Text>暂无订阅信息</Typography.Text>}
+                    <Divider margin="12px 0">Subscription Tiers</Divider>
+                    {tierCount === 0 && <Typography.Text>No subscription information available</Typography.Text>}
                     <Space wrap>
                       {channel.tiers.slice(0, tierCount || channel.tiers.length).map(tier => (
                         <Tag key={`${channel.channelId.toString()}-${tier.tier}`}>
@@ -131,7 +131,7 @@ function ChannelList({ refreshKey }: ChannelListProps) {
 
   return (
     <div style={{ width: '100%' }}>
-      <Typography.Title heading={4}>频道列表</Typography.Title>
+      <Typography.Title heading={4}>Channel List</Typography.Title>
       {content}
     </div>
   );
@@ -149,9 +149,9 @@ function Channel() {
   return (
     <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
       <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
-        <Typography.Title heading={3}>频道管理</Typography.Title>
+        <Typography.Title heading={3}>Channel Management</Typography.Title>
         <Button type="primary" theme="solid" onClick={() => setVisible(true)}>
-          创建频道
+          Create Channel
         </Button>
       </Space>
       <ChannelList refreshKey={shouldRefresh} />

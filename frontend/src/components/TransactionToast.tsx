@@ -44,15 +44,15 @@ interface TransactionToastOptions {
 }
 
 const statusTitle: Record<TransactionToastStatus, string> = {
-  pending: '正在执行',
-  success: '操作成功',
-  error: '操作失败'
+  pending: 'Executing',
+  success: 'Operation Successful',
+  error: 'Operation Failed'
 };
 
 const statusDescription: Record<TransactionToastStatus, (action: string) => string> = {
-  pending: action => `正在执行「${action}」`,
-  success: action => `「${action}」已确认`,
-  error: action => `「${action}」执行失败`
+  pending: action => `Executing「${action}」`,
+  success: action => `「${action}」Confirmed`,
+  error: action => `「${action}」Failed`
 };
 
 interface TransactionToastContentProps {
@@ -79,7 +79,7 @@ const TransactionToastContent: React.FC<TransactionToastContentProps> = ({
           rel="noopener noreferrer"
           style={{ color: 'var(--semi-color-primary)' }}
         >
-          查看交易
+          View Transaction
         </a>
       ) : null}
       {status === 'error' && message ? (

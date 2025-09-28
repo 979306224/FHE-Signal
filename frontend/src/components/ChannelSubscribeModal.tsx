@@ -45,22 +45,22 @@ async function isSubscriptionValidFromNFTContract(nftContractAddress: string, to
   return result as boolean;
 }
 
-// 时长等级显示名称映射
+// Duration tier display name mapping
 const TIER_NAMES: Record<DurationTier, string> = {
-  [DurationTier.OneDay]: '1天',
-  [DurationTier.Month]: '1个月', 
-  [DurationTier.Quarter]: '3个月',
-  [DurationTier.HalfYear]: '6个月',
-  [DurationTier.Year]: '1年'
+  [DurationTier.OneDay]: '1 Day',
+  [DurationTier.Month]: '1 Month', 
+  [DurationTier.Quarter]: '3 Months',
+  [DurationTier.HalfYear]: '6 Months',
+  [DurationTier.Year]: '1 Year'
 };
 
-// 时长等级描述
+// Duration tier descriptions
 const TIER_DESCRIPTIONS: Record<DurationTier, string> = {
-  [DurationTier.OneDay]: '体验订阅',
-  [DurationTier.Month]: '月度订阅',
-  [DurationTier.Quarter]: '季度订阅',
-  [DurationTier.HalfYear]: '半年订阅',
-  [DurationTier.Year]: '年度订阅'
+  [DurationTier.OneDay]: 'Trial Subscription',
+  [DurationTier.Month]: 'Monthly Subscription',
+  [DurationTier.Quarter]: 'Quarterly Subscription',
+  [DurationTier.HalfYear]: 'Half-Year Subscription',
+  [DurationTier.Year]: 'Annual Subscription'
 };
 
 export interface ChannelSubscribeModalProps {
@@ -79,23 +79,23 @@ export default function ChannelSubscribeModal({ channelId }: ChannelSubscribeMod
         address: userAddress,
     });
 
-    // 格式化ETH显示
+    // Format ETH display
     const formatEthPrice = (wei: bigint): string => {
         if (wei === 0n) return '0';
         const eth = Number(wei) / 1e18;
         return eth.toFixed(4);
     };
 
-    // 格式化余额显示
+    // Format balance display
     const formatBalance = (): string => {
         if (!balance) return '0.0000';
         return formatEthPrice(balance.value);
     };
 
-    // 格式化时间戳
+    // Format timestamp
     const formatTimestamp = (timestamp: bigint): string => {
         const date = new Date(Number(timestamp) * 1000);
-        return date.toLocaleString('zh-CN');
+        return date.toLocaleString('en-US');
     };
 
     function handleOk(){
@@ -118,13 +118,13 @@ export default function ChannelSubscribeModal({ channelId }: ChannelSubscribeMod
             setChannelInfo(channel);
             console.log('Channel info loaded:', channel);
             
-            // 如果用户已连接，加载用户的订阅信息
+            // If user is connected, load user subscription info
             if (isConnected && userAddress && channel.nftContract) {
                 await loadUserSubscriptions(channel.nftContract);
             }
         } catch (err) {
             console.error('Failed to load channel info:', err);
-            setError('加载频道信息失败，请重试');
+            setError('Failed to load channel info, please try again');
         } finally {
             setLoading(false);
         }
@@ -136,27 +136,27 @@ export default function ChannelSubscribeModal({ channelId }: ChannelSubscribeMod
             
             console.log('Loading user subscriptions for NFT contract:', nftContractAddress);
             
-            // 获取用户的有效订阅NFT tokenIds
+            // Get user's valid subscription NFT tokenIds
             const tokenIds = await ContractService.getUserValidSubscriptions(nftContractAddress, userAddress);
             console.log('User valid subscriptions tokenIds:', tokenIds);
             
             const subscriptions = new Map<DurationTier, any>();
             
-            // 遍历每个tokenId，检查是否属于当前频道且有效
+            // Iterate through each tokenId, check if it belongs to current channel and is valid
             for (const tokenId of tokenIds) {
                 try {
-                    // 使用NFT合约地址直接获取订阅信息
+                    // Use NFT contract address to directly get subscription info
                     const subscription = await getSubscriptionFromNFTContract(nftContractAddress, tokenId);
                     console.log('Subscription details for tokenId', tokenId.toString(), ':', subscription);
                     
-                    // 检查是否属于当前频道
+                    // Check if belongs to current channel
                     if (subscription.channelId === channelId) {
-                        // 检查订阅是否仍然有效（未过期）
+                        // Check if subscription is still valid (not expired)
                         const isValid = await isSubscriptionValidFromNFTContract(nftContractAddress, tokenId);
                         console.log(`TokenId ${tokenId.toString()} is valid:`, isValid);
                         
                         if (isValid) {
-                            // 确保 tier 是正确的类型
+                            // Ensure tier is correct type
                             const tier = Number(subscription.tier) as DurationTier;
                             subscriptions.set(tier, {
                                 ...subscription,
@@ -184,28 +184,28 @@ export default function ChannelSubscribeModal({ channelId }: ChannelSubscribeMod
         await loadChannelInfo();
     }
 
-    // 订阅处理函数
+    // Subscription handler function
     const handleSubscribe = async (tier: DurationTier) => {
         if (!isConnected) {
-            Toast.error('请先连接钱包');
+            Toast.error('Please connect wallet first');
             return;
         }
 
         if (!channelInfo) {
-            Toast.error('频道信息加载失败');
+            Toast.error('Channel info loading failed');
             return;
         }
 
-        // 找到对应的档位信息
+        // Find corresponding tier info
         const tierInfo = channelInfo.tiers.find(t => t.tier === tier);
         if (!tierInfo) {
-            Toast.error('找不到对应的订阅档位');
+            Toast.error('Cannot find corresponding subscription tier');
             return;
         }
 
-        // 检查余额是否足够
+        // Check if balance is sufficient
         if (balance && balance.value < tierInfo.price) {
-            Toast.error('钱包余额不足，无法完成订阅');
+            Toast.error('Insufficient wallet balance, cannot complete subscription');
             return;
         }
 
@@ -213,7 +213,7 @@ export default function ChannelSubscribeModal({ channelId }: ChannelSubscribeMod
             setSubscribing(tier);
             const paymentAmount = formatEthPrice(tierInfo.price);
             
-            console.log('开始订阅:', {
+            console.log('Starting subscription:', {
                 channelId: channelId.toString(),
                 tier,
                 paymentAmount,
@@ -227,29 +227,29 @@ export default function ChannelSubscribeModal({ channelId }: ChannelSubscribeMod
             );
 
             if (result.success) {
-                Toast.success(`成功订阅 ${TIER_NAMES[tier]} 档位！`);
-                // 刷新频道信息和用户订阅信息
+                Toast.success(`Successfully subscribed to ${TIER_NAMES[tier]} tier!`);
+                // Refresh channel info and user subscription info
                 await loadChannelInfo();
             } else {
-                Toast.error(`订阅失败: ${result.error || '未知错误'}`);
+                Toast.error(`Subscription failed: ${result.error || 'Unknown error'}`);
             }
         } catch (error) {
-            console.error('订阅失败:', error);
-            Toast.error(`订阅失败: ${error instanceof Error ? error.message : '未知错误'}`);
+            console.error('Subscription failed:', error);
+            Toast.error(`Subscription failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             setSubscribing(null);
         }
     };
 
-    // 渲染订阅档位卡片
+    // Render subscription tier cards
     const renderTierCard = (tier: any) => {
-        const tierName = TIER_NAMES[tier.tier as DurationTier] || `档位 ${tier.tier}`;
-        const tierDescription = TIER_DESCRIPTIONS[tier.tier as DurationTier] || '订阅计划';
+        const tierName = TIER_NAMES[tier.tier as DurationTier] || `Tier ${tier.tier}`;
+        const tierDescription = TIER_DESCRIPTIONS[tier.tier as DurationTier] || 'Subscription Plan';
         const tierKey = Number(tier.tier) as DurationTier;
         const userSubscription = userSubscriptions.get(tierKey);
         const hasValidSubscription = userSubscription && userSubscription.isValid;
         
-        // 调试信息
+        // Debug info
         console.log('Rendering tier card:', {
             tier: tier.tier,
             tierKey,
@@ -284,30 +284,30 @@ export default function ChannelSubscribeModal({ channelId }: ChannelSubscribeMod
                         <span className="price-unit">ETH</span>
                     </div>
                     
-                    {/* 已拥有订阅信息 */}
+                    {/* Owned subscription info */}
                     {hasValidSubscription && (
                         <div className="subscription-info" style={{ marginTop: '8px', textAlign: 'center' }}>
                             <Text type="success" size="small" strong>
-                                ✓ 已拥有此档位订阅
+                                ✓ Already own this tier subscription
                             </Text>
                             <div style={{ marginTop: '4px' }}>
                                 <Text type="secondary" size="small">
-                                    到期时间: {formatTimestamp(userSubscription.expiresAt)}
+                                    Expires at: {formatTimestamp(userSubscription.expiresAt)}
                                 </Text>
                             </div>
                         </div>
                     )}
                     
-                    {/* 余额检查提示 */}
+                    {/* Balance check prompt */}
                     {!hasValidSubscription && isConnected && balance && (
                         <div className="balance-check" style={{ marginTop: '8px', textAlign: 'center' }}>
                             {balance.value >= tier.price ? (
                                 <Text type="success" size="small">
-                                    ✓ 余额充足
+                                    ✓ Sufficient balance
                                 </Text>
                             ) : (
                                 <Text type="danger" size="small">
-                                    ✗ 余额不足
+                                    ✗ Insufficient balance
                                 </Text>
                             )}
                         </div>
@@ -325,10 +325,10 @@ export default function ChannelSubscribeModal({ channelId }: ChannelSubscribeMod
                             opacity: hasValidSubscription ? 0.6 : 1
                         }}
                     >
-                        {hasValidSubscription ? '已订阅' :
-                         !isConnected ? '请先连接钱包' : 
-                         subscribing === tier.tier ? '订阅中...' : 
-                         (balance && balance.value < tier.price) ? '余额不足' : '立即订阅'}
+                        {hasValidSubscription ? 'Subscribed' :
+                         !isConnected ? 'Please connect wallet first' : 
+                         subscribing === tier.tier ? 'Subscribing...' : 
+                         (balance && balance.value < tier.price) ? 'Insufficient balance' : 'Subscribe Now'}
                     </Button>
                 </div>
             </Card>
@@ -338,7 +338,7 @@ export default function ChannelSubscribeModal({ channelId }: ChannelSubscribeMod
     return (
         <>
             <Modal
-                title="频道订阅"
+                title="Channel Subscription"
                 visible={visible}
                 onOk={handleOk}
                 afterClose={handleAfterClose}
@@ -351,7 +351,7 @@ export default function ChannelSubscribeModal({ channelId }: ChannelSubscribeMod
                     {loading && (
                         <div className="loading-container">
                             <Spin size="large" />
-                            <Text style={{ marginTop: '16px' }}>加载频道信息中...</Text>
+                            <Text style={{ marginTop: '16px' }}>Loading channel info...</Text>
                         </div>
                     )}
 
@@ -366,26 +366,26 @@ export default function ChannelSubscribeModal({ channelId }: ChannelSubscribeMod
                                 color: 'var(--semi-color-danger)'
                             }}
                         >
-                            <Text type="danger">加载失败: {error}</Text>
+                            <Text type="danger">Loading failed: {error}</Text>
                         </div>
                     )}
 
                     {channelInfo && !loading && (
                         <div className="channel-info">
                             <div className="channel-header">
-                                <Title heading={4}>频道信息</Title>
+                                <Title heading={4}>Channel Info</Title>
                                 <div className="channel-details">
                                     <Text type="secondary">
-                                        频道ID: {channelInfo.channelId.toString()}
+                                        Channel ID: {channelInfo.channelId.toString()}
                                     </Text>
                                     <Text type="secondary">
-                                        创建时间: {formatTimestamp(channelInfo.createdAt)}
+                                        Created at: {formatTimestamp(channelInfo.createdAt)}
                                     </Text>
                                     <Text type="secondary">
-                                        当前钱包: {isConnected ? userAddress : '未连接钱包'}
+                                        Current wallet: {isConnected ? userAddress : 'Wallet not connected'}
                                     </Text>
                                     <Text type="secondary">
-                                        钱包余额: {isConnected ? (balanceLoading ? '加载中...' : `${formatBalance()} ETH`) : '未连接钱包'}
+                                        Wallet balance: {isConnected ? (balanceLoading ? 'Loading...' : `${formatBalance()} ETH`) : 'Wallet not connected'}
                                     </Text>
                                 </div>
                             </div>
@@ -394,7 +394,7 @@ export default function ChannelSubscribeModal({ channelId }: ChannelSubscribeMod
 
                             <div className="subscription-tiers">
                                 <Title heading={5} style={{ marginBottom: '16px' }}>
-                                    订阅档位
+                                    Subscription Tiers
                                 </Title>
                                 
                                 {channelInfo.tiers && channelInfo.tiers.length > 0 ? (
@@ -411,7 +411,7 @@ export default function ChannelSubscribeModal({ channelId }: ChannelSubscribeMod
                                             color: 'var(--semi-color-warning)'
                                         }}
                                     >
-                                        <Text type="warning">暂无订阅档位 - 该频道暂未设置订阅档位</Text>
+                                        <Text type="warning">No subscription tiers - This channel has not set up subscription tiers yet</Text>
                                     </div>
                                 )}
                             </div>
@@ -421,7 +421,7 @@ export default function ChannelSubscribeModal({ channelId }: ChannelSubscribeMod
             </Modal>
             
             <Button theme='solid' type='primary' onClick={() => openModal()}>
-                订阅
+                Subscribe
             </Button>
         </>
     );

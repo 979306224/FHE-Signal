@@ -1,121 +1,121 @@
 # ZAMA FHE Bundle Sale
 
-基于FHEVM的加密Bundle销售智能合约，支持CIDv0格式的IPFS内容标识符。
+Encrypted Bundle Sale smart contract based on FHEVM, supporting CIDv0 format IPFS content identifiers.
 
-## 项目概述
+## Project Overview
 
-这个项目演示了如何在FHEVM环境中处理CIDv0格式的IPFS内容标识符，包括：
-- 将CIDv0转换为uint256格式
-- 在智能合约中存储加密的uint256值
-- 将存储的值转换回CIDv0格式
+This project demonstrates how to handle CIDv0 format IPFS content identifiers in the FHEVM environment, including:
+- Converting CIDv0 to uint256 format
+- Storing encrypted uint256 values in smart contracts
+- Converting stored values back to CIDv0 format
 
-## 技术栈
+## Tech Stack
 
 - **Solidity**: ^0.8.24
-- **FHEVM**: 用于全同态加密
-- **Hardhat**: 开发框架
-- **TypeScript**: 测试和部署脚本
-- **CID**: IPFS内容标识符处理
+- **FHEVM**: For Fully Homomorphic Encryption
+- **Hardhat**: Development framework
+- **TypeScript**: Testing and deployment scripts
+- **CID**: IPFS content identifier processing
 
-## 项目结构
+## Project Structure
 
 ```
 dapp/
 ├── contracts/
-│   ├── FHEBundleSale.sol    # 主要的Bundle销售合约（待实现）
-│   └── Test.sol             # 测试合约，演示CIDv0转换功能
+│   ├── FHEBundleSale.sol    # Main Bundle Sale contract (to be implemented)
+│   └── Test.sol             # Test contract demonstrating CIDv0 conversion
 ├── test/
-│   └── Test.ts              # 测试文件
+│   └── Test.ts              # Test files
 ├── deploy/
-│   └── deploy.ts            # 部署脚本
-└── tasks/                   # Hardhat任务
+│   └── deploy.ts            # Deployment scripts
+└── tasks/                   # Hardhat tasks
 ```
 
-## 功能特性
+## Features
 
 ### Test.sol
-- 存储和检索加密的uint256值
-- 支持FHEVM加密操作
-- 完整的访问控制
+- Store and retrieve encrypted uint256 values
+- Support FHEVM encryption operations
+- Complete access control
 
 ### Test.ts
-- CIDv0与uint256之间的双向转换
-- 加密存储和检索测试
-- 完整的测试覆盖
+- Bidirectional conversion between CIDv0 and uint256
+- Encrypted storage and retrieval testing
+- Complete test coverage
 
-## 安装和运行
+## Installation and Running
 
-### 前置要求
+### Prerequisites
 - Node.js >= 20
 - npm >= 7.0.0
 
-### 安装依赖
+### Install Dependencies
 ```bash
 npm install
 ```
 
-### 编译合约
+### Compile Contracts
 ```bash
 npm run compile
 ```
 
-### 运行测试
+### Run Tests
 ```bash
 npm test
 ```
 
-### 在Sepolia测试网运行测试
+### Run Tests on Sepolia Testnet
 ```bash
 npm run test:sepolia
 ```
 
-## 核心功能
+## Core Features
 
-### CIDv0转换
+### CIDv0 Conversion
 
-项目实现了CIDv0与uint256之间的转换功能：
+The project implements conversion functionality between CIDv0 and uint256:
 
-1. **CIDv0 → uint256**: 解析CIDv0，提取哈希值，转换为BigInt
-2. **uint256 → CIDv0**: 将BigInt转换回CIDv0格式
+1. **CIDv0 → uint256**: Parse CIDv0, extract hash value, convert to BigInt
+2. **uint256 → CIDv0**: Convert BigInt back to CIDv0 format
 
-### 加密存储
+### Encrypted Storage
 
-使用FHEVM实现：
-- 加密存储uint256值
-- 安全的访问控制
-- 支持解密和验证
+Implemented using FHEVM:
+- Encrypted storage of uint256 values
+- Secure access control
+- Support for decryption and verification
 
-## 测试说明
+## Testing Description
 
-测试文件 `Test.ts` 包含一个完整的测试用例，演示：
+The test file `Test.ts` contains a complete test case demonstrating:
 
-1. 解析CIDv0格式
-2. 转换为uint256并加密存储
-3. 从合约中检索并解密
-4. 转换回CIDv0格式并验证
+1. Parsing CIDv0 format
+2. Converting to uint256 and storing encrypted
+3. Retrieving from contract and decrypting
+4. Converting back to CIDv0 format and verifying
 
-## 开发指南
+## Development Guide
 
-### 添加新功能
-1. 在 `contracts/` 目录下创建新的Solidity文件
-2. 在 `test/` 目录下创建对应的测试文件
-3. 更新部署脚本（如需要）
+### Adding New Features
+1. Create new Solidity files in the `contracts/` directory
+2. Create corresponding test files in the `test/` directory
+3. Update deployment scripts (if needed)
 
-### 代码规范
-- 使用TypeScript进行类型安全
-- 遵循Solidity最佳实践
-- 添加完整的JSDoc注释
+### Code Standards
+- Use TypeScript for type safety
+- Follow Solidity best practices
+- Add complete JSDoc comments
 
-## 许可证
+## License
 
 BSD-3-Clause-Clear
 
-## 贡献
+## Contributing
 
-欢迎提交Issue和Pull Request来改进这个项目。
+Issues and Pull Requests are welcome to improve this project.
 
-## 相关链接
+## Related Links
 
-- [FHEVM文档](https://docs.fhevm.org/)
-- [Zama官网](https://zama.ai/)
-- [IPFS CID规范](https://github.com/multiformats/cid)
+- [FHEVM Documentation](https://docs.fhevm.org/)
+- [Zama Official Site](https://zama.ai/)
+- [IPFS CID Specification](https://github.com/multiformats/cid)

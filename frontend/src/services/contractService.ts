@@ -22,20 +22,20 @@ import type {
 import { DurationTier } from '../types/contracts';
 import { showErrorTransactionToast, showPendingTransactionToast, showSuccessTransactionToast } from '../components/TransactionToast';
 
-// 合约地址配置（从部署文件读取）
+// Contract address configuration (read from deployment file)
 const CONTRACT_ADDRESSES: ContractAddresses = {
   FHESubscriptionManager: '0xC20F9a77eA7299CC2823765Fc4729e6e44C35Db5',
   NFTFactory: '0xcB2EC254d95c337a82B0F10a6512579BB586C828'
 };
 
-// 工具函数
+// Utility functions
 const uint8ArrayToHex = (array: Uint8Array): `0x${string}` => {
   return `0x${Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('')}` as `0x${string}`;
 };
 
-// 合约ABI - 包含错误定义和主要方法
+// Contract ABI - Contains error definitions and main methods
 const FHE_SUBSCRIPTION_MANAGER_ABI = parseAbi([
-  // 错误定义
+  // Error definitions
   'error ChannelNotFound()',
   'error NotChannelOwner()',
   'error TopicNotFound()',
@@ -54,7 +54,7 @@ const FHE_SUBSCRIPTION_MANAGER_ABI = parseAbi([
   'error AlreadyAccessed()',
   'error TopicChannelMismatch()',
 
-  // 读取方法
+  // Read methods
   'function getChannel(uint256 id) view returns ((uint256 channelId, string info, address owner, (uint8 tier, uint256 price, uint256 subscribers)[] tiers, uint256 tierCount, address nftContract, uint256 createdAt, uint256 lastPublishedAt, uint256[] topicIds) channel)',
   'function getChannelMaxId() view returns (uint256)',
   'function getTopic(uint256 topicId) view returns ((uint256 topicId, uint256 channelId, string ipfs, uint256 endDate, address creator, uint256 createdAt, uint8 minValue, uint8 maxValue, uint8 defaultValue, bytes32 totalWeightedValue, bytes32 average, uint256 totalWeight, uint256 submissionCount, uint256[] signalIds) topic)',
@@ -73,7 +73,7 @@ const FHE_SUBSCRIPTION_MANAGER_ABI = parseAbi([
   'function isSubscriptionValid(uint256 channelId, uint256 tokenId) view returns (bool)',
   'function getChannelNFTContract(uint256 channelId) view returns (address)',
 
-  // 写入方法
+  // Write methods
   'function createChannel(string info, (uint8 tier, uint256 price, uint256 subscribers)[] tiers) returns (uint256)',
   'function createTopic(uint256 channelId, string ipfs, uint256 endDate, uint8 minValue, uint8 maxValue, uint8 defaultValue) returns (uint256)',
   'function batchAddToAllowlist(uint256 channelId, address[] users, uint64[] weights)',
@@ -95,14 +95,14 @@ const CHANNEL_NFT_ABI = parseAbi([
 ]);
 
 /**
- * 合约服务类，提供与智能合约交互的所有方法
+ * Contract service class, provides all methods for interacting with smart contracts
  */
 export class ContractService {
   
-  // ============ 读取方法 ============
+  // ============ Read Methods ============
   
   /**
-   * 获取频道信息
+   * Get channel information
    */
   static async getChannel(channelId: bigint): Promise<Channel> {
     try {
@@ -115,13 +115,13 @@ export class ContractService {
       
       return result as Channel;
     } catch (error) {
-      console.error('获取频道信息失败:', error);
+      console.error('Failed to get channel info:', error);
       throw error;
     }
   }
 
   /**
-   * 获取当前最大频道ID
+   * Get current maximum channel ID
    */
   static async getChannelMaxId(): Promise<bigint> {
     try {
@@ -133,55 +133,55 @@ export class ContractService {
       
       return result as bigint;
     } catch (error) {
-      console.error('获取最大频道ID失败:', error);
+      console.error('Failed to get max channel ID:', error);
       throw error;
     }
   }
 
   /**
-   * 批量获取所有频道信息
+   * Batch get all channel information
    */
   static async getChannels(): Promise<Channel[]> {
     try {
-      // 首先获取最大频道ID
+      // First get maximum channel ID
       const maxId = await this.getChannelMaxId();
-      console.log(`获取到最大频道ID: ${maxId.toString()}`);
+      console.log(`Got maximum channel ID: ${maxId.toString()}`);
       
       if (maxId === 0n) {
-        console.log('当前没有任何频道');
+        console.log('No channels currently exist');
         return [];
       }
 
       const channels: Channel[] = [];
       const promises: Promise<Channel | null>[] = [];
 
-      // 创建 1 到 maxId 的频道ID获取任务
+      // Create channel ID fetch tasks from 1 to maxId
       for (let i = 1n; i <= maxId; i++) {
         const promise = this.getChannel(i)
           .then(channel => channel)
-          .catch(() => null); // 如果频道不存在，返回null
+          .catch(() => null); // If channel does not exist, return null
         promises.push(promise);
       }
 
       const results = await Promise.allSettled(promises);
       
-      // 过滤出成功获取的频道
+      // Filter out successfully fetched channels
       for (const result of results) {
         if (result.status === 'fulfilled' && result.value) {
           channels.push(result.value);
         }
       }
       
-      console.log(`成功获取 ${channels.length} 个频道，共尝试 ${maxId.toString()} 个ID`);
+      console.log(`Successfully fetched ${channels.length} channels, tried ${maxId.toString()} IDs total`);
       return channels;
     } catch (error) {
-      console.error('批量获取频道信息失败:', error);
+      console.error('Failed to batch get channel info:', error);
       throw error;
     }
   }
 
   /**
-   * 获取Topic信息
+   * Get Topic information
    */
   static async getTopic(topicId: bigint): Promise<Topic> {
     try {
@@ -194,13 +194,13 @@ export class ContractService {
       
       return result as unknown as Topic;
     } catch (error) {
-      console.error('获取Topic信息失败:', error);
+      console.error('Failed to get Topic info:', error);
       throw error;
     }
   }
 
   /**
-   * 获取Signal信息
+   * Get Signal information
    */
   static async getSignal(signalId: bigint): Promise<Signal> {
     try {
@@ -213,13 +213,13 @@ export class ContractService {
       
       return result as Signal;
     } catch (error) {
-      console.error('获取Signal信息失败:', error);
+      console.error('Failed to get Signal info:', error);
       throw error;
     }
   }
 
   /**
-   * 获取频道的Allowlist
+   * Get channel Allowlist
    */
   static async getAllowlist(channelId: bigint): Promise<AllowlistEntry[]> {
     try {
@@ -232,13 +232,13 @@ export class ContractService {
       
       return result as AllowlistEntry[];
     } catch (error) {
-      console.error('获取Allowlist失败:', error);
+      console.error('Failed to get Allowlist:', error);
       throw error;
     }
   }
 
   /**
-   * 分页获取Allowlist
+   * Get Allowlist with pagination
    */
   static async getAllowlistPaginated(
     channelId: bigint, 
@@ -261,13 +261,13 @@ export class ContractService {
         limit
       };
     } catch (error) {
-      console.error('分页获取Allowlist失败:', error);
+      console.error('Failed to get Allowlist with pagination:', error);
       throw error;
     }
   }
 
   /**
-   * 获取频道下的所有Topics
+   * Get all Topics under channel
    */
   static async getChannelTopics(channelId: bigint): Promise<Topic[]> {
     try {
@@ -280,13 +280,13 @@ export class ContractService {
       
       return result as unknown as Topic[];
     } catch (error) {
-      console.error('获取频道Topics失败:', error);
+      console.error('Failed to get channel Topics:', error);
       throw error;
     }
   }
 
   /**
-   * 根据topicIds批量获取Topic信息
+   * Batch get Topic info by topicIds
    */
   static async getTopicsByIds(topicIds: bigint[]): Promise<Topic[]> {
     try {
@@ -294,17 +294,17 @@ export class ContractService {
         return [];
       }
 
-      // 并行获取所有topic信息
+      // Get all topic info in parallel
       const topicPromises = topicIds.map(topicId => 
         this.getTopic(topicId).catch(error => {
-          console.warn(`获取Topic ${topicId} 失败:`, error);
-          return null; // 返回null表示获取失败
+          console.warn(`Failed to get Topic ${topicId}:`, error);
+          return null; // Return null indicates fetch failed
         })
       );
 
       const results = await Promise.allSettled(topicPromises);
       
-      // 过滤出成功获取的topics
+      // Filter out successfully fetched topics
       const topics: Topic[] = [];
       results.forEach((result) => {
         if (result.status === 'fulfilled' && result.value) {
@@ -314,13 +314,13 @@ export class ContractService {
 
       return topics;
     } catch (error) {
-      console.error('批量获取Topics失败:', error);
+      console.error('Failed to batch get Topics:', error);
       throw error;
     }
   }
 
   /**
-   * 获取Topic下的所有Signals
+   * Get all Signals under Topic
    */
   static async getTopicSignals(topicId: bigint): Promise<Signal[]> {
     try {
@@ -333,13 +333,13 @@ export class ContractService {
       
       return result as unknown as Signal[];
     } catch (error) {
-      console.error('获取Topic Signals失败:', error);
+      console.error('Failed to get Topic Signals:', error);
       throw error;
     }
   }
 
   /**
-   * 检查用户是否在Allowlist中
+   * Check if user is in Allowlist
    */
   static async isInAllowlist(channelId: bigint, userAddress: string): Promise<boolean> {
     try {
@@ -352,13 +352,13 @@ export class ContractService {
       
       return result as boolean;
     } catch (error) {
-      console.error('检查Allowlist状态失败:', error);
+      console.error('Failed to check Allowlist status:', error);
       throw error;
     }
   }
 
   /**
-   * 检查用户是否已提交Signal
+   * Check if user has submitted Signal
    */
   static async hasSubmitted(topicId: bigint, userAddress: string): Promise<boolean> {
     try {
@@ -371,13 +371,13 @@ export class ContractService {
       
       return result as boolean;
     } catch (error) {
-      console.error('检查提交状态失败:', error);
+      console.error('Failed to check submission status:', error);
       throw error;
     }
   }
 
   /**
-   * 获取订阅信息
+   * Get subscription info
    */
   static async getSubscription(channelId: bigint, tokenId: bigint): Promise<SubscriptionNFT> {
     try {
@@ -390,13 +390,13 @@ export class ContractService {
       
       return result as unknown as SubscriptionNFT;
     } catch (error) {
-      console.error('获取订阅信息失败:', error);
+      console.error('Failed to get subscription info:', error);
       throw error;
     }
   }
 
   /**
-   * 检查订阅是否有效
+   * Check if subscription is valid
    */
   static async isSubscriptionValid(channelId: bigint, tokenId: bigint): Promise<boolean> {
     try {
@@ -409,13 +409,13 @@ export class ContractService {
       
       return result as boolean;
     } catch (error) {
-      console.error('检查订阅有效性失败:', error);
+      console.error('Failed to check subscription validity:', error);
       throw error;
     }
   }
 
   /**
-   * 获取用户的有效订阅NFT
+   * Get user's valid subscription NFTs
    */
   static async getUserValidSubscriptions(
     nftContractAddress: string, 
@@ -431,7 +431,7 @@ export class ContractService {
       
       return result as bigint[];
     } catch (error) {
-      console.error('获取用户有效订阅失败:', error);
+      console.error('Failed to get user valid subscriptions:', error);
       throw error;
     }
   }
@@ -439,15 +439,15 @@ export class ContractService {
   // ============ 写入方法 ============
 
   /**
-   * 创建频道
+   * Create channel
    */
   static async createChannel(
     info: string,
     tiers: TierPrice[]
   ): Promise<TransactionResult & { channelId?: bigint }> {
-    const toastId = showPendingTransactionToast({ action: '创建频道' });
+    const toastId = showPendingTransactionToast({ action: 'Create Channel' });
     try {
-      // 首先模拟交易
+      // First simulate transaction
       const { request } = await simulateContract(wagmiConfig, {
         address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
         abi: FHE_SUBSCRIPTION_MANAGER_ABI,
@@ -455,16 +455,16 @@ export class ContractService {
         args: [info, tiers as any]
       });
 
-      // 执行交易
+      // Execute transaction
       const hash = await writeContract(wagmiConfig, request);
 
-      showPendingTransactionToast({ id: toastId, action: '创建频道', hash });
+      showPendingTransactionToast({ id: toastId, action: 'Create Channel', hash });
 
-      // 等待交易确认
+      // Wait for transaction confirmation
       const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
 
       if (receipt.status === 'success') {
-        // 尝试从事件日志中提取ChannelId
+        // Try to extract ChannelId from event logs
         let channelId: bigint | undefined;
         
         try {
@@ -502,7 +502,7 @@ export class ContractService {
           console.warn('提取频道ID失败:', eventError);
         }
 
-        showSuccessTransactionToast({ id: toastId, action: '创建频道', hash });
+        showSuccessTransactionToast({ id: toastId, action: 'Create Channel', hash });
         
         return {
           hash,
@@ -512,7 +512,7 @@ export class ContractService {
           channelId
         };
       } else {
-        showErrorTransactionToast({ id: toastId, action: '创建频道', hash, message: '交易未成功' });
+        showErrorTransactionToast({ id: toastId, action: 'Create Channel', hash, message: 'Transaction not successful' });
         
         return {
           hash,
@@ -522,18 +522,18 @@ export class ContractService {
         };
       }
     } catch (error) {
-      console.error('创建频道失败:', error);
+      console.error('Create Channel失败:', error);
 
       showErrorTransactionToast({
         id: toastId,
-        action: '创建频道',
-        message: error instanceof Error ? error.message : '未知错误'
+        action: 'Create Channel',
+        message: error instanceof Error ? error.message : 'Unknown error'
       });
 
       return {
         hash: '',
         success: false,
-        error: error instanceof Error ? error.message : '未知错误'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
@@ -549,7 +549,7 @@ export class ContractService {
     maxValue: number,
     defaultValue: number
   ): Promise<TransactionResult> {
-    const toastId = showPendingTransactionToast({ action: '创建话题' });
+    const toastId = showPendingTransactionToast({ action: 'Create Topic' });
     try {
       const { request } = await simulateContract(wagmiConfig, {
         address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
@@ -560,14 +560,14 @@ export class ContractService {
 
       const hash = await writeContract(wagmiConfig, request);
 
-      showPendingTransactionToast({ id: toastId, action: '创建话题', hash });
+      showPendingTransactionToast({ id: toastId, action: 'Create Topic', hash });
 
       const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
 
       if (receipt.status === 'success') {
-        showSuccessTransactionToast({ id: toastId, action: '创建话题', hash });
+        showSuccessTransactionToast({ id: toastId, action: 'Create Topic', hash });
       } else {
-        showErrorTransactionToast({ id: toastId, action: '创建话题', hash, message: '交易未成功' });
+        showErrorTransactionToast({ id: toastId, action: 'Create Topic', hash, message: 'Transaction not successful' });
       }
       
       return {
@@ -581,14 +581,14 @@ export class ContractService {
 
       showErrorTransactionToast({
         id: toastId,
-        action: '创建话题',
-        message: error instanceof Error ? error.message : '未知错误'
+        action: 'Create Topic',
+        message: error instanceof Error ? error.message : 'Unknown error'
       });
 
       return {
         hash: '',
         success: false,
-        error: error instanceof Error ? error.message : '未知错误'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
@@ -597,7 +597,7 @@ export class ContractService {
    * 批量添加到Allowlist
    */
   static async batchAddToAllowlist(params: BatchAllowlistParams): Promise<TransactionResult> {
-    const toastId = showPendingTransactionToast({ action: '批量添加白名单' });
+    const toastId = showPendingTransactionToast({ action: 'Batch Add to Allowlist' });
     try {
       const { request } = await simulateContract(wagmiConfig, {
         address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
@@ -608,14 +608,14 @@ export class ContractService {
 
       const hash = await writeContract(wagmiConfig, request);
 
-      showPendingTransactionToast({ id: toastId, action: '批量添加白名单', hash });
+      showPendingTransactionToast({ id: toastId, action: 'Batch Add to Allowlist', hash });
 
       const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
 
       if (receipt.status === 'success') {
-        showSuccessTransactionToast({ id: toastId, action: '批量添加白名单', hash });
+        showSuccessTransactionToast({ id: toastId, action: 'Batch Add to Allowlist', hash });
       } else {
-        showErrorTransactionToast({ id: toastId, action: '批量添加白名单', hash, message: '交易未成功' });
+        showErrorTransactionToast({ id: toastId, action: 'Batch Add to Allowlist', hash, message: 'Transaction not successful' });
       }
       
       return {
@@ -629,14 +629,14 @@ export class ContractService {
 
       showErrorTransactionToast({
         id: toastId,
-        action: '批量添加白名单',
-        message: error instanceof Error ? error.message : '未知错误'
+        action: 'Batch Add to Allowlist',
+        message: error instanceof Error ? error.message : 'Unknown error'
       });
 
       return {
         hash: '',
         success: false,
-        error: error instanceof Error ? error.message : '未知错误'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
@@ -645,7 +645,7 @@ export class ContractService {
    * 批量从Allowlist移除
    */
   static async batchRemoveFromAllowlist(params: BatchRemoveParams): Promise<TransactionResult> {
-    const toastId = showPendingTransactionToast({ action: '批量移除白名单' });
+    const toastId = showPendingTransactionToast({ action: 'Batch Remove from Allowlist' });
     try {
       const { request } = await simulateContract(wagmiConfig, {
         address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
@@ -656,14 +656,14 @@ export class ContractService {
 
       const hash = await writeContract(wagmiConfig, request);
 
-      showPendingTransactionToast({ id: toastId, action: '批量移除白名单', hash });
+      showPendingTransactionToast({ id: toastId, action: 'Batch Remove from Allowlist', hash });
 
       const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
 
       if (receipt.status === 'success') {
-        showSuccessTransactionToast({ id: toastId, action: '批量移除白名单', hash });
+        showSuccessTransactionToast({ id: toastId, action: 'Batch Remove from Allowlist', hash });
       } else {
-        showErrorTransactionToast({ id: toastId, action: '批量移除白名单', hash, message: '交易未成功' });
+        showErrorTransactionToast({ id: toastId, action: 'Batch Remove from Allowlist', hash, message: 'Transaction not successful' });
       }
       
       return {
@@ -677,27 +677,27 @@ export class ContractService {
 
       showErrorTransactionToast({
         id: toastId,
-        action: '批量移除白名单',
-        message: error instanceof Error ? error.message : '未知错误'
+        action: 'Batch Remove from Allowlist',
+        message: error instanceof Error ? error.message : 'Unknown error'
       });
 
       return {
         hash: '',
         success: false,
-        error: error instanceof Error ? error.message : '未知错误'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
 
   /**
-   * 订阅频道
+   * Subscribe to Channel
    */
   static async subscribe(
     channelId: bigint,
     tier: DurationTier,
     paymentAmount: string
   ): Promise<TransactionResult> {
-    const toastId = showPendingTransactionToast({ action: '订阅频道' });
+    const toastId = showPendingTransactionToast({ action: 'Subscribe to Channel' });
     try {
       const value = parseEther(paymentAmount);
       
@@ -711,14 +711,14 @@ export class ContractService {
 
       const hash = await writeContract(wagmiConfig, request);
 
-      showPendingTransactionToast({ id: toastId, action: '订阅频道', hash });
+      showPendingTransactionToast({ id: toastId, action: 'Subscribe to Channel', hash });
 
       const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
 
       if (receipt.status === 'success') {
-        showSuccessTransactionToast({ id: toastId, action: '订阅频道', hash });
+        showSuccessTransactionToast({ id: toastId, action: 'Subscribe to Channel', hash });
       } else {
-        showErrorTransactionToast({ id: toastId, action: '订阅频道', hash, message: '交易未成功' });
+        showErrorTransactionToast({ id: toastId, action: 'Subscribe to Channel', hash, message: 'Transaction not successful' });
       }
       
       return {
@@ -732,14 +732,14 @@ export class ContractService {
 
       showErrorTransactionToast({
         id: toastId,
-        action: '订阅频道',
-        message: error instanceof Error ? error.message : '未知错误'
+        action: 'Subscribe to Channel',
+        message: error instanceof Error ? error.message : 'Unknown error'
       });
 
       return {
         hash: '',
         success: false,
-        error: error instanceof Error ? error.message : '未知错误'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
@@ -772,7 +772,7 @@ export class ContractService {
     encryptedValue: Uint8Array,
     proof: Uint8Array
   ): Promise<TransactionResult> {
-    const toastId = showPendingTransactionToast({ action: '提交信号' });
+    const toastId = showPendingTransactionToast({ action: 'Submit Signal' });
     try {
       // 转换 Uint8Array 为 hex 字符串
       const encryptedValueHex = uint8ArrayToHex(encryptedValue);
@@ -787,14 +787,14 @@ export class ContractService {
 
       const hash = await writeContract(wagmiConfig, request);
 
-      showPendingTransactionToast({ id: toastId, action: '提交信号', hash });
+      showPendingTransactionToast({ id: toastId, action: 'Submit Signal', hash });
 
       const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
 
       if (receipt.status === 'success') {
-        showSuccessTransactionToast({ id: toastId, action: '提交信号', hash });
+        showSuccessTransactionToast({ id: toastId, action: 'Submit Signal', hash });
       } else {
-        showErrorTransactionToast({ id: toastId, action: '提交信号', hash, message: '交易未成功' });
+        showErrorTransactionToast({ id: toastId, action: 'Submit Signal', hash, message: 'Transaction not successful' });
       }
       
       return {
@@ -808,14 +808,14 @@ export class ContractService {
 
       showErrorTransactionToast({
         id: toastId,
-        action: '提交信号',
-        message: error instanceof Error ? error.message : '未知错误'
+        action: 'Submit Signal',
+        message: error instanceof Error ? error.message : 'Unknown error'
       });
 
       return {
         hash: '',
         success: false,
-        error: error instanceof Error ? error.message : '未知错误'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
@@ -828,7 +828,7 @@ export class ContractService {
     topicId: bigint,
     tokenId: bigint
   ): Promise<TransactionResult> {
-    const toastId = showPendingTransactionToast({ action: '访问话题结果' });
+    const toastId = showPendingTransactionToast({ action: 'Access Topic Results' });
     try {
       const { request } = await simulateContract(wagmiConfig, {
         address: CONTRACT_ADDRESSES.FHESubscriptionManager as Address,
@@ -839,14 +839,14 @@ export class ContractService {
 
       const hash = await writeContract(wagmiConfig, request);
 
-      showPendingTransactionToast({ id: toastId, action: '访问话题结果', hash });
+      showPendingTransactionToast({ id: toastId, action: 'Access Topic Results', hash });
 
       const receipt = await waitForTransactionReceipt(wagmiConfig, { hash });
 
       if (receipt.status === 'success') {
-        showSuccessTransactionToast({ id: toastId, action: '访问话题结果', hash });
+        showSuccessTransactionToast({ id: toastId, action: 'Access Topic Results', hash });
       } else {
-        showErrorTransactionToast({ id: toastId, action: '访问话题结果', hash, message: '交易未成功' });
+        showErrorTransactionToast({ id: toastId, action: 'Access Topic Results', hash, message: 'Transaction not successful' });
       }
       
       return {
@@ -860,14 +860,14 @@ export class ContractService {
 
       showErrorTransactionToast({
         id: toastId,
-        action: '访问话题结果',
-        message: error instanceof Error ? error.message : '未知错误'
+        action: 'Access Topic Results',
+        message: error instanceof Error ? error.message : 'Unknown error'
       });
 
       return {
         hash: '',
         success: false,
-        error: error instanceof Error ? error.message : '未知错误'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }

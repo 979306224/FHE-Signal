@@ -11,7 +11,7 @@ export type Signers = {
   eve: HardhatEthersSigner;
 };
 
-// 定义枚举映射
+// Define enum mapping
 export const DurationTier = {
   OneDay: 0,
   Month: 1,
@@ -21,12 +21,12 @@ export const DurationTier = {
 };
 
 export async function deployFixture() {
-  // 部署FHESubscriptionManager合约
+  // Deploy FHESubscriptionManager contract
   const FHESubscriptionManagerFactory = await ethers.getContractFactory("FHESubscriptionManager");
   const subscriptionManager = await FHESubscriptionManagerFactory.deploy() as FHESubscriptionManager;
   const subscriptionManagerAddress = await subscriptionManager.getAddress();
 
-  // 获取NFT工厂地址
+  // Get NFT factory address
   const nftFactoryAddress = await subscriptionManager.NFT_FACTORY();
   const nftFactory = await ethers.getContractAt("NFTFactory", nftFactoryAddress) as NFTFactory;
 

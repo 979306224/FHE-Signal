@@ -3,21 +3,21 @@ pragma solidity ^0.8.24;
 import {euint8,euint64} from "@fhevm/solidity/lib/FHE.sol";
 
 
-// 订阅时长等级枚举
+// Subscription duration tier enum
 enum DurationTier {
-    OneDay,                // 1天
-    Month,                 // 30天
-    Quarter,              // 90 季度
-    HalfYear,             // 180
-    Year                 // 365天
+    OneDay,                // 1day
+    Month,                 // 30day
+    Quarter,              // 90 days quarter
+    HalfYear,             // 180 days
+    Year                 // 365day
 }
 
 
-// 等级价格输入结构体  表示不同订阅的价格
+// Tier price input structure representing prices for different subscriptions
 struct TierPrice {
     DurationTier tier;
-    uint256 price;  // 支付的是原生代币 eth
-    // 已订阅人数
+    uint256 price;  // Payment is in native token eth
+    // Number of subscribers
     uint256 subscribers;
 }
 
@@ -29,61 +29,61 @@ struct Channel{
     address owner;
 
     /**
-    *  价格列表
+    *  Price list
      */
     TierPrice[] tiers;
     uint256 tierCount;
 
-    // 对应的NFT合约地址
+    // Corresponding NFT contract address
     address nftContract;
 
-    // 创建时间
+    // Creation time
     uint256 createdAt;
-    // 最后一次推送时间
+    // Last published time
     uint256 lastPublishedAt;
     
-    // 索引数组：该频道下的所有topic ID
+    // Index array: all topic IDs under this channel
     uint256[] topicIds;
 }
 
 
-// Topic 结构体
+// Topic structure
 struct Topic {
     uint256 topicId;
     uint256 channelId;
-    string ipfs;           // IPFS哈希，表示topic想要表达的内容
-    uint256 endDate;       // topic结束日期（时间戳）
-    address creator;       // topic创建者
-    uint256 createdAt;     // 创建时间戳
+    string ipfs;           // IPFS hash representing the content that topic wants to express
+    uint256 endDate;       // Topic end date (timestamp)
+    address creator;       // Topic creator
+    uint256 createdAt;     // Creation timestamp
     
-    // 值范围配置
-    uint8 minValue;        // 最小允许值
-    uint8 maxValue;        // 最大允许值
-    uint8 defaultValue;    // 默认值（当输入超出范围时使用）
+    // Value range configuration
+    uint8 minValue;        // Minimum allowed value
+    uint8 maxValue;        // Maximum allowed value
+    uint8 defaultValue;    // Default value (used when input is out of range)
     
-    // 加权平均值相关
-    euint64 totalWeightedValue;  // 加权值总和（FHE加密）
-    euint64 average;             // 当前加权平均值（FHE加密）
-    uint256 totalWeight;         // 明文权重总和
-    uint256 submissionCount;     // 提交次数
+    // Weighted average value related
+    euint64 totalWeightedValue;  // Sum of weighted values (FHE encrypted)
+    euint64 average;             // Current weighted average value (FHE encrypted)
+    uint256 totalWeight;         // Plaintext weight sum
+    uint256 submissionCount;     // Submission count
     
-    // 索引数组：该topic下的所有signal ID
+    // Index array: all signal IDs under this topic
     uint256[] signalIds;
 }
 
-// Allowlist 条目结构体
+// Allowlist entry structure
 struct AllowlistEntry {
-    address user;          // 用户地址
-    uint64 weight;         // 用户权重（明文）
-    bool exists;           // 是否存在标记
+    address user;          // User address
+    uint64 weight;         // User weight (plaintext)
+    bool exists;           // Existence flag
 }
 
 struct Signal{
     uint256 signalId;
     uint256 channelId;
-    uint256 topicId;       // 归属的topic ID
+    uint256 topicId;       // Belonging topic ID
     
-    address submitter;     // 提交者地址
-    euint8 value;         // 信号值（0-255，FHE加密）
-    uint256 submittedAt;  // 提交时间戳
+    address submitter;     // Submitter address
+    euint8 value;         // Signal value (0-255, FHE encrypted)
+    uint256 submittedAt;  // Submission timestamp
 }

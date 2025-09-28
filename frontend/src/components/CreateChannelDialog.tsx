@@ -46,11 +46,11 @@ export default function CreateChannelDialog({ onSuccess }: CreateChannelDialogPr
     const handleLogoBeforeUpload = useCallback((file: unknown) => {
         const realFile = extractFileInstance(file);
         if (!realFile) {
-            Toast.error('文件无效');
+            Toast.error('Invalid file');
             return false;
         }
         if (!realFile.type.startsWith('image/')) {
-            Toast.error('仅支持上传图片文件');
+            Toast.error('Only image files are supported');
             return false;
         }
         return true;
@@ -81,7 +81,7 @@ export default function CreateChannelDialog({ onSuccess }: CreateChannelDialogPr
         }) => {
             const realFile = extractFileInstance(fileInstance ?? (file as any)?.fileInstance ?? file);
             if (!realFile) {
-                onError?.(new Error('无效的文件类型'));
+                onError?.(new Error('Invalid file type'));
                 return;
             }
             try {
@@ -120,35 +120,35 @@ export default function CreateChannelDialog({ onSuccess }: CreateChannelDialogPr
         const { logoFile, ...rest } = values;
         const submitPayload = {
             ...rest,
-            logo: values.logo || '' // 如果没有logo，使用空字符串
+            logo: values.logo || '' // If no logo, use empty string
         };
         console.log(submitPayload, 'submitPayload');
         
-        // 验证至少有一个付费计划
+        // Validate at least one payment plan
         if (!tiers || tiers.length === 0) {
-            Toast.error('请至少配置一个付费计划');
+            Toast.error('Please configure at least one payment plan');
             setSubmitting(false);
             return;
         }
         
 
-            // 提交这个json到ipfs
+            // Submit this json to ipfs
             const ipfsResult = await PinataService.uploadJson(submitPayload);
-            console.log('IPFS上传结果:', ipfsResult);
+            console.log('IPFS upload result:', ipfsResult);
 
-            // 提交到合约
+            // Submit to contract
             const contractResult = await ContractService.createChannel(
-                ipfsResult.ipfsUri, // 使用IPFS URI作为频道信息
+                ipfsResult.ipfsUri, // Use IPFS URI as channel information
                 tiers
             );
 
             if (contractResult.success) {
                 const message = contractResult.channelId 
-                    ? `频道创建成功！频道ID: ${contractResult.channelId.toString()}`
-                    : `频道创建成功！交易哈希: ${contractResult.hash}`;
+                    ? `Channel created successfully! Channel ID: ${contractResult.channelId.toString()}`
+                    : `Channel created successfully! Transaction hash: ${contractResult.hash}`;
                 Toast.success(message);
                 
-                console.log('频道创建结果:', {
+                console.log('Channel creation result:', {
                     channelId: contractResult.channelId?.toString(),
                     hash: contractResult.hash,
                     ipfsUri: ipfsResult.ipfsUri
@@ -158,14 +158,14 @@ export default function CreateChannelDialog({ onSuccess }: CreateChannelDialogPr
                 setTiers([]);
                 formApiRef.current?.reset();
                 
-                // 调用成功回调
+                // Call success callback
                 onSuccess?.();
             } else {
-                Toast.error(`创建频道失败: ${contractResult.error || '未知错误'}`);
+                Toast.error(`Failed to create channel: ${contractResult.error || 'Unknown error'}`);
             }
         } catch (error) {
-            console.error('创建频道过程中出错:', error);
-            Toast.error(`创建频道失败: ${error instanceof Error ? error.message : '未知错误'}`);
+            console.error('Error during channel creation:', error);
+            Toast.error(`Failed to create channel: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             setSubmitting(false);
         }
@@ -176,7 +176,7 @@ export default function CreateChannelDialog({ onSuccess }: CreateChannelDialogPr
 
     return <>
         <Modal
-            title="创建频道"
+            title="Create Channel"
             visible={visible}
             onCancel={handleCancel}
             closeOnEsc={!submitting}
@@ -190,9 +190,9 @@ export default function CreateChannelDialog({ onSuccess }: CreateChannelDialogPr
             }}
             footer={
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-                    <Button onClick={handleCancel} disabled={submitting}>取消</Button>
+                    <Button onClick={handleCancel} disabled={submitting}>Cancel</Button>
                     <Button theme="solid" loading={submitting} onClick={handleSubmit}>
-                        确认
+                        Confirm
                     </Button>
                 </div>
             }
@@ -210,19 +210,19 @@ export default function CreateChannelDialog({ onSuccess }: CreateChannelDialogPr
             >
                 <Form.Input
                     field="name"
-                    label="频道名称"
-                    placeholder="请输入频道名称"
-                    rules={[{ required: true, message: '请输入频道名称' }]}
+                    label="Channel Name"
+                    placeholder="Please enter channel name"
+                    rules={[{ required: true, message: 'Please enter channel name' }]}
                 />
                 <Form.TextArea
                     field="description"
-                    label="频道描述"
-                    placeholder="请输入频道描述"
+                    label="Channel Description"
+                    placeholder="Please enter channel description"
                     autosize={{ minRows: 3 }}
                 />
                 <Form.Upload
                     field="logoFile"
-                    label="频道 Logo (可选)"
+                    label="Channel Logo (Optional)"
                     action=""
                     accept="image/*"
                     limit={1}
@@ -237,10 +237,10 @@ export default function CreateChannelDialog({ onSuccess }: CreateChannelDialogPr
                         formApiRef.current?.setValue('logo', '');
                     }}
                 />
-                <div className="infoText" >推荐使用96x96的图片</div>
+                <div className="infoText" >Recommended to use 96x96 images</div>
 
                 <div style={{ marginBottom: 24 }}>
-                    <Form.Label text="订阅付费计划" />
+                    <Form.Label text="Subscription Payment Plans" />
                     <SubscriptionPlanSelector
                         tiers={tiers}
                         onChange={setTiers}
@@ -249,6 +249,6 @@ export default function CreateChannelDialog({ onSuccess }: CreateChannelDialogPr
 
             </Form>
         </Modal>
-        <Button theme="solid" onClick={handleOpen} type="primary">创建频道</Button>
+        <Button theme="solid" onClick={handleOpen} type="primary">Create Channel</Button>
     </>
 }

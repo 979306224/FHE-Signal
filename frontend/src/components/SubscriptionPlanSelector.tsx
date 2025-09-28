@@ -5,25 +5,25 @@ import './SubscriptionPlanSelector.less';
 
 const { Title, Text } = Typography;
 
-// 时长等级显示名称映射
+// Duration tier display name mapping
 const TIER_NAMES: Record<DurationTier, string> = {
-  [DurationTier.OneDay]: '1天',
-  [DurationTier.Month]: '1个月', 
-  [DurationTier.Quarter]: '3个月',
-  [DurationTier.HalfYear]: '6个月',
-  [DurationTier.Year]: '1年'
+  [DurationTier.OneDay]: '1 Day',
+  [DurationTier.Month]: '1 Month', 
+  [DurationTier.Quarter]: '3 Months',
+  [DurationTier.HalfYear]: '6 Months',
+  [DurationTier.Year]: '1 Year'
 };
 
-// 时长等级描述
+// Duration tier descriptions
 const TIER_DESCRIPTIONS: Record<DurationTier, string> = {
-  [DurationTier.OneDay]: '体验订阅',
-  [DurationTier.Month]: '月度订阅',
-  [DurationTier.Quarter]: '季度订阅',
-  [DurationTier.HalfYear]: '半年订阅',
-  [DurationTier.Year]: '年度订阅'
+  [DurationTier.OneDay]: 'Trial Subscription',
+  [DurationTier.Month]: 'Monthly Subscription',
+  [DurationTier.Quarter]: 'Quarterly Subscription',
+  [DurationTier.HalfYear]: 'Half-Year Subscription',
+  [DurationTier.Year]: 'Annual Subscription'
 };
 
-// 推荐标签
+// Recommended badges
 const TIER_BADGES: Record<DurationTier, string | null> = {
   [DurationTier.OneDay]: null,
   [DurationTier.Month]: null,
@@ -39,7 +39,7 @@ interface SubscriptionPlanSelectorProps {
 
 export default function SubscriptionPlanSelector({ tiers, onChange }: SubscriptionPlanSelectorProps) {
 
-  // 获取指定等级的价格，如果不存在则返回默认值
+  // Get price for specified tier, return default if not exists
   const getTierPrice = useCallback((tier: DurationTier): TierPrice => {
     const existing = tiers.find(t => t.tier === tier);
     return existing || {
@@ -49,7 +49,7 @@ export default function SubscriptionPlanSelector({ tiers, onChange }: Subscripti
     };
   }, [tiers]);
 
-  // 更新指定等级的价格
+  // Update price for specified tier
   const updateTierPrice = useCallback((tier: DurationTier, price: bigint) => {
     const newTiers = [...tiers];
     const existingIndex = newTiers.findIndex(t => t.tier === tier);
@@ -67,7 +67,7 @@ export default function SubscriptionPlanSelector({ tiers, onChange }: Subscripti
         newTiers.push(tierPrice);
       }
     } else {
-      // 价格为0时移除该等级
+      // Remove tier when price is 0
       if (existingIndex >= 0) {
         newTiers.splice(existingIndex, 1);
       }
@@ -77,14 +77,14 @@ export default function SubscriptionPlanSelector({ tiers, onChange }: Subscripti
   }, [tiers, onChange]);
 
 
-  // 格式化ETH显示
+  // Format ETH display
   const formatEthPrice = useCallback((wei: bigint): string => {
     if (wei === 0n) return '0';
     const eth = Number(wei) / 1e18;
     return eth.toFixed(4);
   }, []);
 
-  // 将ETH转换为wei
+  // Convert ETH to wei
   const ethToWei = useCallback((eth: number): bigint => {
     return BigInt(Math.floor(eth * 1e18));
   }, []);
@@ -133,7 +133,7 @@ export default function SubscriptionPlanSelector({ tiers, onChange }: Subscripti
                 
                 <div className="price-input-section">
                   <Text type="secondary" size="small" style={{ marginBottom: 8, display: 'block' }}>
-                    设置价格 (ETH)
+                    Set Price (ETH)
                   </Text>
                   <InputNumber
                     value={hasPrice ? Number(formatEthPrice(tierPrice.price)) : undefined}
@@ -153,7 +153,7 @@ export default function SubscriptionPlanSelector({ tiers, onChange }: Subscripti
                     suffix="ETH"
                   />
                   <Text type="tertiary" size="small" style={{ marginTop: 4, display: 'block' }}>
-                    留空或设为0将不启用此计划
+                    Leave empty or set to 0 to disable this plan
                   </Text>
                 </div>
               </div>
@@ -164,7 +164,7 @@ export default function SubscriptionPlanSelector({ tiers, onChange }: Subscripti
 
       {tiers.length > 0 && (
         <div className="plan-summary">
-          <Title heading={6}>已配置的订阅计划</Title>
+          <Title heading={6}>Configured Subscription Plans</Title>
           <Space wrap>
             {tiers.map((tierPrice) => (
               <div key={tierPrice.tier} className="summary-item">

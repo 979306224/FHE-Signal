@@ -17,7 +17,7 @@ interface UploadResult {
 function getJwt(): string {
   const jwt = import.meta.env.VITE_PINATA_JWT;
   if (!jwt) {
-    throw new Error('未配置 Pinata JWT，请在 .env 中设置 VITE_PINATA_JWT');
+    throw new Error('Pinata JWT not configured, please set VITE_PINATA_JWT in .env');
   }
   return jwt;
 }
@@ -41,11 +41,11 @@ function generateMetadataFileName(): string {
 
 export default class PinataService {
   /**
-   * 从 IPFS 获取 JSON 数据
+   * Fetch JSON data from IPFS
    */
   static async fetchJson<T = any>(ipfsUri: string): Promise<T> {
     try {
-      // 将 ipfs:// URI 转换为网关 URL
+      // Convert ipfs:// URI to gateway URL
       const cid = ipfsUri.replace('ipfs://', '');
       const gatewayUrl = buildGatewayUrl(cid);
       
@@ -59,7 +59,7 @@ export default class PinataService {
       return data as T;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`从 IPFS 获取数据失败: ${message}`);
+      throw new Error(`Failed to fetch data from IPFS: ${message}`);
     }
   }
 
@@ -82,7 +82,7 @@ export default class PinataService {
       const upload = await builder;
 
       if (!upload?.cid) {
-        throw new Error('Pinata 上传失败，未返回 CID');
+        throw new Error('Pinata upload failed, no CID returned');
       }
 
       const { cid } = upload;
@@ -94,13 +94,13 @@ export default class PinataService {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Pinata 上传失败: ${message}`);
+      throw new Error(`Pinata upload failed: ${message}`);
     }
   }
 
   static async uploadFile(file: File, onProgress?: (percent: number) => void): Promise<UploadResult> {
     if (!(file instanceof File)) {
-      throw new Error('无效的文件实例');
+      throw new Error('Invalid file instance');
     }
 
     const groupId = getPublicGroupId();
@@ -121,7 +121,7 @@ export default class PinataService {
       const upload = await builder;
 
       if (!upload?.cid) {
-        throw new Error('Pinata 上传失败，未返回 CID');
+        throw new Error('Pinata upload failed, no CID returned');
       }
 
       const { cid } = upload;
@@ -135,7 +135,7 @@ export default class PinataService {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Pinata 上传失败: ${message}`);
+      throw new Error(`Pinata upload failed: ${message}`);
     }
   }
 }

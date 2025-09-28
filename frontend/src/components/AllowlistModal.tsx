@@ -14,7 +14,7 @@ export interface AllowlistModalProps {
     onClose: () => void;
 }
 
-// 表格数据结构
+// Table data structure
 interface UserEntry {
     id: string;
     address: string;
@@ -31,28 +31,28 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize] = useState(10);
 
-    // 添加用户相关状态
+    // Add user related state
     const [showAddForm, setShowAddForm] = useState(false);
     const [addingUsers, setAddingUsers] = useState(false);
-    const [addStep, setAddStep] = useState(0); // 0: 输入, 1: 预览, 2: 确认
+    const [addStep, setAddStep] = useState(0); // 0: input, 1: preview, 2: confirm
 
-    // 调试：监听 showAddForm 状态变化
+    // Debug: listen to showAddForm state changes
     useEffect(() => {
-        console.log('showAddForm 状态变化:', showAddForm);
+        console.log('showAddForm state change:', showAddForm);
     }, [showAddForm]);
 
-    // 表格数据结构
+    // Table data structure
     const [tableData, setTableData] = useState<UserEntry[]>([
         { id: '1', address: '', weight: '1' }
     ]);
     const [previewData, setPreviewData] = useState<{users: string[], weights: bigint[]}>();
 
-    // 移除用户相关状态
+    // Remove user related state
     const [removingUsers, setRemovingUsers] = useState<Set<string>>(new Set());
 
     const { address: userAddress, isConnected } = useAccount();
 
-    // 加载白名单数据
+    // Load allowlist data
     const loadAllowlist = useCallback(async (page: number = 1) => {
         try {
             setLoading(true);
@@ -68,45 +68,45 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
             console.log('Allowlist loaded:', result);
         } catch (err) {
             console.error('Failed to load allowlist:', err);
-            setError('加载白名单失败，请重试');
+            setError('Failed to load allowlist, please try again');
         } finally {
             setLoading(false);
         }
     }, [channelId, pageSize]);
 
-    // 初始化加载
+    // Initial load
     useEffect(() => {
         if (visible) {
             loadAllowlist(1);
         }
     }, [visible, loadAllowlist]);
 
-    // 验证单个地址
+    // Validate single address
     const validateAddress = (address: string): string | undefined => {
-        if (!address.trim()) return '请输入地址';
+        if (!address.trim()) return 'Please enter address';
         const addressRegex = /^0x[a-fA-F0-9]{40}$/;
         if (!addressRegex.test(address)) {
-            return '无效的地址格式（必须是 0x 开头的40位十六进制）';
+            return 'Invalid address format (must be 0x followed by 40 hexadecimal characters)';
         }
         return undefined;
     };
 
-    // 验证单个权重
+    // Validate single weight
     const validateWeight = (weight: string): string | undefined => {
-        if (!weight.trim()) return '请输入权重';
+        if (!weight.trim()) return 'Please enter weight';
         const num = parseInt(weight);
         if (isNaN(num) || num <= 0) {
-            return '权重必须是大于 0 的整数';
+            return 'Weight must be an integer greater than 0';
         }
         return undefined;
     };
 
-    // 更新表格数据
+    // Update table data
     const updateTableEntry = (id: string, field: 'address' | 'weight', value: string) => {
         setTableData(prev => prev.map(item => {
             if (item.id === id) {
                 const updated = { ...item, [field]: value };
-                // 实时验证
+                // Real-time validation
                 if (field === 'address') {
                     updated.addressError = validateAddress(value);
                 } else if (field === 'weight') {
@@ -118,40 +118,40 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
         }));
     };
 
-    // 添加新行
+    // Add new row
     const addNewRow = () => {
         const newId = Date.now().toString();
         setTableData(prev => [...prev, { id: newId, address: '', weight: '1' }]);
     };
 
-    // 删除行
+    // Delete row
     const deleteRow = (id: string) => {
         setTableData(prev => prev.filter(item => item.id !== id));
     };
 
-    // 验证所有数据
+    // Validate all data
     const validateAllData = (): { valid: boolean; errors: string[]; validEntries: UserEntry[] } => {
         const errors: string[] = [];
         const validEntries: UserEntry[] = [];
 
-        // 过滤空行
+        // Filter empty rows
         const nonEmptyEntries = tableData.filter(item => item.address.trim() || item.weight.trim());
 
         if (nonEmptyEntries.length === 0) {
-            errors.push('请至少添加一个用户');
+            errors.push('Please add at least one user');
             return { valid: false, errors, validEntries };
         }
 
-        // 检查每一行
+        // Check each row
         nonEmptyEntries.forEach((item, index) => {
             const addressError = validateAddress(item.address);
             const weightError = validateWeight(item.weight);
 
             if (addressError) {
-                errors.push(`第${index + 1}行地址: ${addressError}`);
+                errors.push(`Row ${index + 1} address: ${addressError}`);
             }
             if (weightError) {
-                errors.push(`第${index + 1}行权重: ${weightError}`);
+                errors.push(`Row ${index + 1} weight: ${weightError}`);
             }
 
             if (!addressError && !weightError) {
@@ -159,11 +159,11 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
             }
         });
 
-        // 检查重复地址
+        // Check for duplicate addresses
         const addresses = validEntries.map(item => item.address.toLowerCase());
         const duplicates = addresses.filter((addr, index) => addresses.indexOf(addr) !== index);
         if (duplicates.length > 0) {
-            errors.push(`发现重复地址: ${[...new Set(duplicates)].join(', ')}`);
+            errors.push(`Found duplicate addresses: ${[...new Set(duplicates)].join(', ')}`);
         }
 
         return {
@@ -173,7 +173,7 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
         };
     };
 
-    // 处理表单提交
+    // Handle form submission
     const handleFormSubmit = useCallback(async () => {
         const validation = validateAllData();
 
@@ -182,7 +182,7 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
             return;
         }
 
-        // 设置预览数据并进入预览步骤
+        // Set preview data and enter preview step
         setPreviewData({
             users: validation.validEntries.map(item => item.address),
             weights: validation.validEntries.map(item => BigInt(item.weight))
@@ -190,10 +190,10 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
         setAddStep(1);
     }, [tableData]);
 
-    // 处理添加用户确认
+    // Handle add user confirmation
     const handleConfirmAdd = useCallback(async () => {
         if (!isConnected || !userAddress || !previewData) {
-            Toast.error('请先连接钱包');
+            Toast.error('Please connect wallet first');
             return;
         }
 
@@ -211,17 +211,17 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
 
             if (result.success) {
                 Toast.success({
-                    content: `🎉 成功添加 ${previewData.users.length} 个用户到白名单！`,
+                    content: `🎉 Successfully added ${previewData.users.length} users to allowlist!`,
                     duration: 3
                 });
-                // 重置所有状态
+                // Reset all state
                 setShowAddForm(false);
                 setAddStep(0);
                 setPreviewData(undefined);
                 setTableData([{ id: '1', address: '', weight: '100' }]);
                 await loadAllowlist(currentPage);
             } else {
-                Toast.error(`添加失败: ${result.error || '未知错误'}`);
+                Toast.error(`Add failed: ${result.error || 'Unknown error'}`);
                 setAddStep(1); // 回到预览步骤
             }
         } catch (error) {

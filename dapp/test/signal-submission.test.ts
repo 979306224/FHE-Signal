@@ -3,7 +3,7 @@ import { FHESubscriptionManager, NFTFactory } from "../types";
 import { expect } from "chai";
 import { deployFixture, getSigners, DurationTier, type Signers } from "./test-utils";
 
-describe("FHESubscriptionManager - Signal提交和FHE加密功能", function () {
+describe("FHESubscriptionManager - Signal Submission and FHE Encryption Features", function () {
   let signers: Signers;
   let subscriptionManager: FHESubscriptionManager;
   let subscriptionManagerAddress: string;
@@ -17,9 +17,9 @@ describe("FHESubscriptionManager - Signal提交和FHE加密功能", function () 
   });
 
   beforeEach(async () => {
-    // 检查是否在FHEVM模拟环境中运行
+    // Check if running in FHEVM mock environment
     if (!fhevm.isMock) {
-      throw new Error(`此测试套件只能在FHEVM模拟环境中运行`);
+      throw new Error(`This test suite can only run in FHEVM mock environment`);
     }
     ({ 
       subscriptionManager, 
@@ -28,26 +28,26 @@ describe("FHESubscriptionManager - Signal提交和FHE加密功能", function () 
       nftFactoryAddress
     } = await deployFixture());
 
-    // 创建测试频道和topic
+    // Create test channel and topic
     const tiers = [{ tier: DurationTier.Month, price: ethers.parseEther("0.1"), subscribers: 0 }];
-    await subscriptionManager.connect(signers.alice).createChannel("测试频道", tiers);
+    await subscriptionManager.connect(signers.alice).createChannel("Test Channel", tiers);
     channelId = 1;
     
-    const endDate = Math.floor(Date.now() / 1000) + 86400; // 1天后过期
+    const endDate = Math.floor(Date.now() / 1000) + 86400; // Expires in 1 day
     await subscriptionManager.connect(signers.alice).createTopic(
       channelId, "QmTestIPFSHash", endDate, 10, 90, 50
     );
     topicId = 1;
     
-    // 添加用户到allowlist
+    // Add users to allowlist
     const users = [signers.bob.address, signers.charlie.address];
     const weights = [100, 200];
     await subscriptionManager.connect(signers.alice)
       .batchAddToAllowlist(channelId, users, weights);
   });
 
-  it("应该成功提交Signal", async function () {
-    // 创建加密输入
+  it("should successfully submit Signal", async function () {
+    // Create encrypted input
     const signalValue = 75;
     const encryptedInput = await fhevm
       .createEncryptedInput(subscriptionManagerAddress, signers.bob.address)
@@ -60,7 +60,7 @@ describe("FHESubscriptionManager - Signal提交和FHE加密功能", function () 
       encryptedInput.inputProof
     );
     
-    // 验证事件
+    // Verify event
     await expect(tx)
       .to.emit(subscriptionManager, "SignalSubmitted")
       .withArgs(topicId, 1, signers.bob.address);
@@ -69,24 +69,24 @@ describe("FHESubscriptionManager - Signal提交和FHE加密功能", function () 
       .to.emit(subscriptionManager, "AverageUpdated")
       .withArgs(topicId, 1);
     
-    // 验证signal数据
+    // Verify signal data
     const signal = await subscriptionManager.getSignal(1);
     expect(signal.signalId).to.equal(1);
     expect(signal.channelId).to.equal(channelId);
     expect(signal.topicId).to.equal(topicId);
     expect(signal.submitter).to.equal(signers.bob.address);
     
-    // 验证提交状态
+    // Verify submission status
     expect(await subscriptionManager.hasSubmitted(topicId, signers.bob.address)).to.be.true;
     expect(await subscriptionManager.hasSubmitted(topicId, signers.charlie.address)).to.be.false;
     
-    // 验证topic更新
+    // Verify topic update
     const topic = await subscriptionManager.getTopic(topicId);
     expect(topic.submissionCount).to.equal(1);
-    expect(topic.totalWeight).to.equal(100); // Bob的权重
+    expect(topic.totalWeight).to.equal(100); // Bob's weight
   });
 
-  it("应该拒绝非allowlist用户提交", async function () {
+  it("should reject submission from non-allowlist users", async function () {
     const signalValue = 75;
     const encryptedInput = await fhevm
       .createEncryptedInput(subscriptionManagerAddress, signers.david.address)
@@ -102,8 +102,8 @@ describe("FHESubscriptionManager - Signal提交和FHE加密功能", function () 
     ).to.be.revertedWithCustomError(subscriptionManager, "NotInAllowlist");
   });
 
-  it("应该拒绝重复提交", async function () {
-    // 第一次提交
+  it("should reject duplicate submissions", async function () {
+    // First submission
     const signalValue = 75;
     let encryptedInput = await fhevm
       .createEncryptedInput(subscriptionManagerAddress, signers.bob.address)
@@ -116,7 +116,7 @@ describe("FHESubscriptionManager - Signal提交和FHE加密功能", function () 
       encryptedInput.inputProof
     );
     
-    // 第二次提交应该失败
+    // Second submission should fail
     encryptedInput = await fhevm
       .createEncryptedInput(subscriptionManagerAddress, signers.bob.address)
       .add8(80)
@@ -131,27 +131,27 @@ describe("FHESubscriptionManager - Signal提交和FHE加密功能", function () 
     ).to.be.revertedWithCustomError(subscriptionManager, "AlreadySubmitted");
   });
 
-  it("应该拒绝向过期topic提交", async function () {
-    // 首先测试无法创建过期的topic
-    const pastDate = Math.floor(Date.now() / 1000) - 100; // 100秒前（已过期）
+  it("should reject submissions to expired topic", async function () {
+    // First test that we cannot create expired topic
+    const pastDate = Math.floor(Date.now() / 1000) - 100; // 100 seconds ago (expired)
     await expect(
       subscriptionManager.connect(signers.alice).createTopic(
         channelId, "QmExpiredTopic", pastDate, 10, 90, 50
       )
     ).to.be.revertedWithCustomError(subscriptionManager, "InvalidEndDate");
     
-    // 获取当前区块时间并创建一个很快就会过期的topic（60秒后过期）
+    // Get current block time and create a topic that will expire soon (expires in 60 seconds)
     const currentBlock = await ethers.provider.getBlock('latest');
     const currentBlockTime = currentBlock!.timestamp;
-    const shortDate = currentBlockTime + 60; // 60秒后过期
+    const shortDate = currentBlockTime + 60; // Expires in 60 seconds
     await subscriptionManager.connect(signers.alice).createTopic(
       channelId, "QmExpiredTopic", shortDate, 10, 90, 50
     );
     const expiredTopicId = 2;
     
-    // 通过快进区块链时间来使topic过期
-    await ethers.provider.send("evm_increaseTime", [65]); // 快进65秒
-    await ethers.provider.send("evm_mine", []); // 挖一个新区块
+    // Fast forward blockchain time to make topic expire
+    await ethers.provider.send("evm_increaseTime", [65]); // Fast forward 65 seconds
+    await ethers.provider.send("evm_mine", []); // Mine a new block
     
     const signalValue = 75;
     const encryptedInput = await fhevm
@@ -168,9 +168,9 @@ describe("FHESubscriptionManager - Signal提交和FHE加密功能", function () 
     ).to.be.revertedWithCustomError(subscriptionManager, "TopicExpired");
   });
 
-  it("应该正确处理超出范围的值", async function () {
-    // 提交小于最小值的signal（应该被设为默认值50）
-    const tooSmallValue = 5; // 小于minValue(10)
+  it("should correctly handle out-of-range values", async function () {
+    // Submit signal smaller than minimum value (should be set to default value 50)
+    const tooSmallValue = 5; // Less than minValue(10)
     let encryptedInput = await fhevm
       .createEncryptedInput(subscriptionManagerAddress, signers.bob.address)
       .add8(tooSmallValue)
@@ -182,8 +182,8 @@ describe("FHESubscriptionManager - Signal提交和FHE加密功能", function () 
       encryptedInput.inputProof
     );
     
-    // 提交大于最大值的signal（应该被设为默认值50）
-    const tooLargeValue = 95; // 大于maxValue(90)
+    // Submit signal larger than maximum value (should be set to default value 50)
+    const tooLargeValue = 95; // Greater than maxValue(90)
     encryptedInput = await fhevm
       .createEncryptedInput(subscriptionManagerAddress, signers.charlie.address)
       .add8(tooLargeValue)
@@ -195,14 +195,14 @@ describe("FHESubscriptionManager - Signal提交和FHE加密功能", function () 
       encryptedInput.inputProof
     );
     
-    // 验证两个signal都被记录
+    // Verify both signals are recorded
     const topic = await subscriptionManager.getTopic(topicId);
     expect(topic.submissionCount).to.equal(2);
     expect(topic.totalWeight).to.equal(300); // 100 + 200
   });
 
-  it("应该正确计算加权平均值", async function () {
-    // Bob提交值75，权重100
+  it("should correctly calculate weighted average", async function () {
+    // Bob submits value 75, weight 100
     let encryptedInput = await fhevm
       .createEncryptedInput(subscriptionManagerAddress, signers.bob.address)
       .add8(75)
@@ -214,7 +214,7 @@ describe("FHESubscriptionManager - Signal提交和FHE加密功能", function () 
       encryptedInput.inputProof
     );
     
-    // Charlie提交值25，权重200
+    // Charlie submits value 25, weight 200
     encryptedInput = await fhevm
       .createEncryptedInput(subscriptionManagerAddress, signers.charlie.address)
       .add8(25)
@@ -226,14 +226,14 @@ describe("FHESubscriptionManager - Signal提交和FHE加密功能", function () 
       encryptedInput.inputProof
     );
     
-    // 验证加权平均值：(75*100 + 25*200) / (100+200) = (7500 + 5000) / 300 = 41.67 ≈ 41
+    // Verify weighted average: (75*100 + 25*200) / (100+200) = (7500 + 5000) / 300 = 41.67 ≈ 41
     const topic = await subscriptionManager.getTopic(topicId);
     expect(topic.submissionCount).to.equal(2);
     expect(topic.totalWeight).to.equal(300);
   });
 
-  it("应该正确索引signals到topic", async function () {
-    // 提交多个signals
+  it("should correctly index signals to topic", async function () {
+    // Submit multiple signals
     const values = [75, 25];
     const users = [signers.bob, signers.charlie];
     
@@ -250,11 +250,11 @@ describe("FHESubscriptionManager - Signal提交和FHE加密功能", function () 
       );
     }
     
-    // 验证topic下的signal数量
+    // Verify signal count under topic
     const signalCount = await subscriptionManager.getTopicSignalCount(topicId);
     expect(signalCount).to.equal(2);
     
-    // 验证获取所有signals
+    // Verify getting all signals
     const signals = await subscriptionManager.getTopicSignals(topicId);
     expect(signals.length).to.equal(2);
     expect(signals[0].submitter).to.equal(signers.bob.address);

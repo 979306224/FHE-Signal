@@ -22,9 +22,9 @@ export function ChannelList() {
   const [error, setError] = useState<string | null>(null);
 
   const handleChannelCreated = useCallback(() => {
-    // 触发刷新
+    // Trigger refresh
     setRefreshKey(prev => prev + 1);
-    console.log('频道创建成功，触发列表刷新');
+    console.log('Channel created successfully, triggering list refresh');
   }, []);
 
   const loadChannels = useCallback(async () => {
@@ -34,49 +34,49 @@ export function ChannelList() {
     setError(null);
     
     try {
-      console.log('开始加载频道列表...');
+      console.log('Starting to load channel list...');
       
-      // 获取所有频道基本信息
+      // Get all channel basic information
       const channelData = await ContractService.getChannels();
-      console.log(`成功获取 ${channelData.length} 个频道`);
+      console.log(`Successfully fetched ${channelData.length} channels`);
       
       if (channelData.length === 0) {
         setChannels([]);
         return;
       }
 
-      // 并行获取IPFS数据
+      // Fetch IPFS data in parallel
       const channelsWithIPFS = await Promise.allSettled(
         channelData.map(async (channel) => {
           try {
             const ipfsData = await PinataService.fetchJson<IPFSChannel>(channel.info);
             return { ...channel, ipfsData };
           } catch (ipfsError) {
-            console.warn(`频道 ${channel.channelId} IPFS数据获取失败:`, ipfsError);
+            console.warn(`Channel ${channel.channelId} IPFS data fetch failed:`, ipfsError);
             return { ...channel, ipfsData: undefined };
           }
         })
       );
 
-      // 处理结果
+      // Process results
       const validChannels: ChannelWithIPFS[] = [];
       channelsWithIPFS.forEach((result, index) => {
         if (result.status === 'fulfilled') {
           validChannels.push(result.value);
         } else {
-          console.warn(`频道 ${channelData[index].channelId} 处理失败:`, result.reason);
+          console.warn(`Channel ${channelData[index].channelId} processing failed:`, result.reason);
           validChannels.push({ ...channelData[index], ipfsData: undefined });
         }
       });
 
       setChannels(validChannels);
-      console.log('频道列表加载完成');
+      console.log('Channel list loading completed');
       
     } catch (err) {
-      const message = err instanceof Error ? err.message : '未知错误';
-      console.error('加载频道列表失败:', err);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Failed to load channel list:', err);
       setError(message);
-      Toast.error(`加载频道列表失败: ${message}`);
+      Toast.error(`Failed to load channel list: ${message}`);
     } finally {
       setLoading(false);
     }
@@ -87,28 +87,28 @@ export function ChannelList() {
   }, []);
 
   const handleSubscribe = useCallback((channelId: bigint) => {
-    console.log('订阅频道:', channelId.toString());
-    // TODO: 实现订阅逻辑
-    Toast.info(`订阅频道 ${channelId.toString()}`);
+    console.log('Subscribe to channel:', channelId.toString());
+    // TODO: Implement subscription logic
+    Toast.info(`Subscribe to channel ${channelId.toString()}`);
   }, []);
 
 
-  // 监听refreshKey变化，重新加载数据
+  // Listen for refreshKey changes, reload data
   useEffect(() => {
     loadChannels();
-  }, [refreshKey]); // 移除loadChannels依赖避免无限循环
+  }, [refreshKey]); // Remove loadChannels dependency to avoid infinite loop
 
-  // 初始加载
+  // Initial load
   useEffect(() => {
     loadChannels();
-  }, []); // 空依赖数组，仅在组件挂载时执行
+  }, []); // Empty dependency array, only execute when component mounts
 
   return (
     <div className="channel-list-container">
       <div className="channel-list-header">
         <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
           <Title heading={3} style={{ margin: 0 }}>
-            频道列表
+            Channel List
           </Title>
           <Space>
             <CreateChannelDialog onSuccess={handleChannelCreated} />
@@ -122,15 +122,15 @@ export function ChannelList() {
             <Spin size="large" />
             <div style={{ marginTop: 16, textAlign: 'center' }}>
               <Typography.Text type="secondary">
-                正在加载频道列表...
+                Loading channel list...
               </Typography.Text>
             </div>
           </div>
         ) : error ? (
           <div className="channel-list-error">
             <Empty
-              title="加载失败"
-              description={`加载频道列表时出错: ${error}`}
+              title="Loading Failed"
+              description={`Error loading channel list: ${error}`}
               image={<IconRefresh size="large" />}
               style={{ marginTop: 40 }}
             />
@@ -138,8 +138,8 @@ export function ChannelList() {
         ) : channels.length === 0 ? (
           <div className="channel-list-empty">
             <Empty
-              title="暂无频道"
-              description="还没有任何频道，快来创建第一个频道吧！"
+              title="No Channels"
+              description="No channels yet, create the first one!"
               style={{ marginTop: 40 }}
             />
           </div>

@@ -7,27 +7,27 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   console.log("Deploying contracts with the account:", deployer);
   
-  // 首先部署NFTFactory
+  // First deploy NFTFactory
   console.log("\n=== Deploying NFTFactory ===");
   const deployedNFTFactory = await deploy("NFTFactory", {
     from: deployer,
     log: true,
-    waitConfirmations: hre.network.name === "hardhat" ? 1 : 5, // 在测试网上等待更多确认
+    waitConfirmations: hre.network.name === "hardhat" ? 1 : 5, // Wait for more confirmations on testnet
   });
 
   console.log(`NFTFactory deployed to: ${deployedNFTFactory.address}`);
 
-  // 然后部署FHESubscriptionManager
+  // Then deploy FHESubscriptionManager
   console.log("\n=== Deploying FHESubscriptionManager ===");
   const deployedFHESubscription = await deploy("FHESubscriptionManager", {
     from: deployer,
     log: true,
-    waitConfirmations: hre.network.name === "hardhat" ? 1 : 5, // 在测试网上等待更多确认
+    waitConfirmations: hre.network.name === "hardhat" ? 1 : 5, // Wait for more confirmations on testnet
   });
 
   console.log(`FHESubscriptionManager deployed to: ${deployedFHESubscription.address}`);
 
-  // 在测试网上进行合约验证
+  // Verify contracts on testnet
   if (hre.network.name !== "hardhat" && hre.network.name !== "anvil") {
     console.log("\n=== Verifying contracts on Etherscan ===");
     
@@ -68,7 +68,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   console.log(`NFTFactory: ${deployedNFTFactory.address}`);
   console.log(`FHESubscriptionManager: ${deployedFHESubscription.address}`);
   
-  // 保存合约地址到文件
+  // Save contract addresses to file
   const fs = require("fs");
   const deploymentInfo = {
     network: hre.network.name,

@@ -119,7 +119,7 @@ function CreateChannelCard({ onSuccess }: CreateChannelCardProps) {
 
   const handleCreateChannel = useCallback(async () => {
     if (!isConnected) {
-      setFeedback({ type: 'warning', message: '请先连接钱包' });
+      setFeedback({ type: 'warning', message: 'Please connect wallet first' });
       return;
     }
 
@@ -127,18 +127,18 @@ function CreateChannelCard({ onSuccess }: CreateChannelCardProps) {
     const trimmedDescription = description.trim();
 
     if (!trimmedProjectName) {
-      setFeedback({ type: 'warning', message: '请输入项目名称' });
+      setFeedback({ type: 'warning', message: 'Please enter project name' });
       return;
     }
 
     if (!trimmedDescription) {
-      setFeedback({ type: 'warning', message: '请输入项目描述' });
+      setFeedback({ type: 'warning', message: 'Please enter project description' });
       return;
     }
 
     const enabledTiers = tierConfigs.filter(item => item.enabled);
     if (enabledTiers.length === 0) {
-      setFeedback({ type: 'warning', message: '请至少启用一个订阅档位并设置价格' });
+      setFeedback({ type: 'warning', message: 'Please enable at least one subscription tier and set price' });
       return;
     }
 
@@ -151,7 +151,7 @@ function CreateChannelCard({ onSuccess }: CreateChannelCardProps) {
     });
 
     if (invalidTier) {
-      setFeedback({ type: 'warning', message: '订阅价格需为大于0的数字' });
+      setFeedback({ type: 'warning', message: 'Subscription price must be a number greater than 0' });
       return;
     }
 
@@ -177,15 +177,15 @@ function CreateChannelCard({ onSuccess }: CreateChannelCardProps) {
       const result = await ContractService.createChannel(metadata.ipfsUri, tiers);
 
       if (result.success) {
-        setFeedback({ type: 'success', message: '频道创建成功，元数据已上传至 IPFS' });
+        setFeedback({ type: 'success', message: 'Channel created successfully, metadata uploaded to IPFS' });
         resetForm();
         onSuccess?.();
       } else {
-        setFeedback({ type: 'danger', message: `频道创建失败：${result.error ?? '未知错误'}` });
+        setFeedback({ type: 'danger', message: `Channel creation failed: ${result.error ?? 'Unknown error'}` });
       }
     } catch (error) {
-      console.error('创建频道异常:', error);
-      const message = error instanceof Error ? error.message : '创建频道时发生未知错误';
+      console.error('Channel creation exception:', error);
+      const message = error instanceof Error ? error.message : 'Unknown error occurred during channel creation';
       setFeedback({ type: 'danger', message });
     } finally {
       setIsSubmitting(false);
@@ -194,7 +194,7 @@ function CreateChannelCard({ onSuccess }: CreateChannelCardProps) {
 
   return (
     <Card
-      title="创建频道"
+      title="Create Channel"
       style={{ width: '100%', maxWidth: 720 }}
       headerStyle={{ fontSize: 20 }}
     >
@@ -230,17 +230,17 @@ function CreateChannelCard({ onSuccess }: CreateChannelCardProps) {
 
         <div>
           <Typography.Title heading={5} style={{ marginBottom: 12 }}>
-            频道元数据
+            Channel Metadata
           </Typography.Title>
           <Input
-            placeholder="请输入项目名称，例如：AI 预测市场"
+            placeholder="Please enter project name, e.g.: AI Prediction Market"
             value={projectName}
             maxLength={80}
             showClear
             onChange={value => setProjectName(value)}
           />
           <TextArea
-            placeholder="请输入项目描述，将与订阅信息一同上传到 IPFS"
+            placeholder="Please enter project description, will be uploaded to IPFS along with subscription info"
             value={description}
             rows={5}
             maxLength={500}
@@ -249,12 +249,12 @@ function CreateChannelCard({ onSuccess }: CreateChannelCardProps) {
             onChange={value => setDescription(value)}
           />
           <Typography.Text type="tertiary" style={{ marginTop: 8, display: 'block' }}>
-            提交后会先将以上信息上传至 IPFS，获得的地址将写入合约。
+            After submission, the above information will be uploaded to IPFS first, and the obtained address will be written to the contract.
           </Typography.Text>
         </div>
 
         <div>
-          <Typography.Title heading={5}>订阅档位</Typography.Title>
+          <Typography.Title heading={5}>Subscription Tiers</Typography.Title>
           <Space wrap>
             {tierConfigs.map(item => (
               <Card key={item.tier} type="inner" style={{ backgroundColor: 'var(--semi-color-fill-0)' }}>
@@ -263,10 +263,10 @@ function CreateChannelCard({ onSuccess }: CreateChannelCardProps) {
                     checked={item.enabled}
                     onChange={event => handleTierToggle(item.tier, event.target.checked)}
                   >
-                    启用 {item.label}
+                    Enable {item.label}
                   </Checkbox>
                   <Input
-                    placeholder="请输入该档位单价，例如 0.1"
+                    placeholder="Please enter unit price for this tier, e.g. 0.1"
                     suffix="ETH"
                     disabled={!item.enabled}
                     value={item.price}
@@ -287,21 +287,21 @@ function CreateChannelCard({ onSuccess }: CreateChannelCardProps) {
             disabled={!isConnected}
             onClick={handleCreateChannel}
           >
-            {isConnected ? '上传并创建 Channel' : '请先连接钱包'}
+            {isConnected ? 'Upload and Create Channel' : 'Please connect wallet first'}
           </Button>
           {!isConnected && (
             <Typography.Text type="warning" style={{ marginTop: 8, display: 'block', textAlign: 'center' }}>
-              请使用右上角按钮连接钱包以创建频道。
+              Please use the button in the top right corner to connect wallet to create channel.
             </Typography.Text>
           )}
         </div>
 
         {ipfsResult && (
-          <Card type="inner" title="IPFS 上传结果">
+          <Card type="inner" title="IPFS Upload Result">
             <Space vertical style={{ width: '100%' }}>
               <Typography.Text>CID：{ipfsResult.cid}</Typography.Text>
               <Typography.Text>
-                网关地址：
+                Gateway Address:
                 <a href={ipfsResult.ipfsGatewayUrl} target="_blank" rel="noreferrer">
                   {ipfsResult.ipfsGatewayUrl}
                 </a>
