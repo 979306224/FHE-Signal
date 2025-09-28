@@ -1,0 +1,107 @@
+.channel-subscribe-modal {
+  .loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  .channel-info {
+    .channel-header {
+      margin-bottom: 16px;
+
+      .channel-details {
+        margin-top: 12px;
+        
+        .semi-typography {
+          display: block;
+          margin-bottom: 4px;
+        }
+      }
+    }
+
+    .subscription-tiers {
+      .tiers-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+        margin-top: 16px;
+      }
+    }
+  }
+
+  .tier-card {
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--semi-color-border);
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(var(--semi-color-primary-rgb), 0.15);
+      transform: translateY(-2px);
+    }
+
+    .tier-header {
+      text-align: center;
+      margin-bottom: 4px;
+
+      .semi-typography {
+        margin-bottom: 4px;
+      }
+    }
+
+    .tier-content {
+      .price-display {
+        text-align: center;
+        margin-bottom: 12px;
+
+        .price-amount {
+          font-size: 28px;
+          font-weight: 700;
+          color: var(--semi-color-primary);
+          line-height: 1;
+        }
+
+        .price-unit {
+          font-size: 14px;
+          color: var(--semi-color-text-2);
+          margin-left: 4px;
+        }
+      }
+
+      .subscriber-count {
+        text-align: center;
+        margin-bottom: 8px;
+      }
+    }
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .channel-subscribe-modal {
+    .tiers-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .tier-card {
+      &:hover {
+        transform: none;
+      }
+    }
+  }
+}
+
+/* 深色主题适配 */
+body[theme-mode="dark"] {
+  .channel-subscribe-modal {
+    .tier-card {
+      &:hover {
+        box-shadow: 0 4px 12px rgba(var(--semi-color-primary-rgb), 0.2);
+      }
+    }
+  }
+}

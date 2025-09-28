@@ -9,6 +9,7 @@ import { fheService } from '../FHE/fheService';
 import { useFHE, FHEStatus } from '../FHE/fheContext';
 import { FHEStatusIndicator } from '../FHE/FHEStatusIndicator';
 import FHEProgressToast from './FHEProgressToast';
+import ChannelSubscribeModal from './ChannelSubscribeModal';
 import './ChannelDetailModal.less';
 
 const { Title, Text } = Typography;
@@ -31,7 +32,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
   const { address: userAddress, isConnected } = useAccount();
   const { status: fheStatus, isReady } = useFHE();
   const fheReady = fheStatus === FHEStatus.READY && isReady();
-  
+
   // 调试FHE状态
   useEffect(() => {
     console.log('FHE状态调试:', {
@@ -52,7 +53,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
   const [submittingSignal, setSubmittingSignal] = useState(false);
   const [signalValue, setSignalValue] = useState<string>('');
   const [formApiRef, setFormApiRef] = useState<any>(null);
-  
+
   // FHE 进度状态
   const [showFHEProgress, setShowFHEProgress] = useState(false);
   const [fheProgressStep, setFheProgressStep] = useState(0);
@@ -61,7 +62,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
   // 使用 useWriteContract hook
   const { writeContractAsync, isPending: isWritePending } = useWriteContract();
   const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
-  
+
   // 等待交易确认
   const { data: receipt, isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash: pendingTxHash as `0x${string}` | undefined,
@@ -131,16 +132,16 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
   // 加载频道的所有topics
   const loadTopics = useCallback(async () => {
     if (!visible) return;
-    
+
     setLoadingTopics(true);
     try {
       // 根据channel.topicIds获取topic信息
       const topicIds = channel.topicIds || [];
       console.log('channel.topicIds', topicIds);
-      
+
       const topicData = await ContractService.getTopicsByIds(topicIds);
       console.log('topicData', topicData);
-      
+
       // 并行获取IPFS数据
       const topicsWithIPFS = await Promise.allSettled(
         topicData.map(async (topic) => {
@@ -190,9 +191,9 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         title: values.title,
         description: values.description
       };
-      
+
       const ipfsResult = await PinataService.uploadJson(topicInfo);
-      
+
       // 创建topic
       const endDate = BigInt(Math.floor(new Date(values.endDate).getTime() / 1000));
       const result = await ContractService.createTopic(
@@ -267,14 +268,14 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
           setSubmittingSignal(false);
           return;
         }
-        
+
         // 前端验证信号值范围
         if (numericValue < topic.minValue || numericValue > topic.maxValue) {
           Toast.error(`信号值必须在 ${topic.minValue} - ${topic.maxValue} 范围内`);
           setSubmittingSignal(false);
           return;
         }
-        
+
         // 检查是否已经提交过
         const hasSubmitted = await ContractService.hasSubmitted(selectedTopicId, userAddress);
         if (hasSubmitted) {
@@ -282,7 +283,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
           setSubmittingSignal(false);
           return;
         }
-        
+
         // 检查是否在白名单中
         const isInAllowlist = await ContractService.isInAllowlist(topic.channelId, userAddress);
         if (!isInAllowlist && channel.owner !== userAddress) {
@@ -313,7 +314,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         userAddress,
         topicId: selectedTopicId.toString()
       });
-      
+
       // 验证 FHE 服务状态
       if (!fheService.isReady()) {
         Toast.error('FHE 服务未就绪');
@@ -321,20 +322,20 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         setShowFHEProgress(false);
         return;
       }
-      
+
       setFheProgressStep(2);
       setFheProgressName('创建加密输入...');
-      
+
       const encryptedInput = fheService.createEncryptedInput(contractAddress, userAddress);
       encryptedInput.add8(numericValue);
-      
+
       setFheProgressStep(3);
       setFheProgressName('执行 FHE 加密计算...');
-      
+
       const encryptedResult = await encryptedInput.encrypt();
       const encryptedValueHandle = encryptedResult.handles[0];
       const proof = encryptedResult.inputProof;
-      
+
       // 验证加密结果
       if (!encryptedValueHandle || !proof) {
         Toast.error('FHE 加密失败：缺少加密数据或证明');
@@ -359,16 +360,16 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         return `0x${Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('')}` as `0x${string}`;
       };
 
-      console.log('FHE加密完成:', { 
+      console.log('FHE加密完成:', {
         encryptedValue: `Uint8Array(${encryptedValueHandle.length})`,
         proof: `Uint8Array(${proof.length})`,
         encryptedValueHex: uint8ArrayToHex(encryptedValueHandle),
         proofHex: uint8ArrayToHex(proof)
       });
-      
+
       setFheProgressStep(5);
       setFheProgressName('准备提交交易...');
-      
+
       // 获取合约调用配置
       const contractConfig = ContractService.getSubmitSignalConfig(
         selectedTopicId,
@@ -381,11 +382,11 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       const hash = await writeContractAsync(contractConfig);
       console.log('交易哈希:', hash);
       setPendingTxHash(hash);
-      
+
       // 完成 FHE 进度
       setFheProgressStep(5);
       setFheProgressName('FHE 加密完成！');
-      
+
       // 延迟关闭进度条
       setTimeout(() => {
         setShowFHEProgress(false);
@@ -393,12 +394,12 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       }, 1000);
     } catch (error) {
       console.error('提交信号失败:', error);
-      
+
       // 详细的错误信息处理
       let errorMessage = '未知错误';
       if (error instanceof Error) {
         errorMessage = error.message;
-        
+
         // 检查常见的合约错误
         if (error.message.includes('TopicNotFound')) {
           errorMessage = '话题不存在';
@@ -412,7 +413,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
           errorMessage = '合约调用失败，请检查权限和参数';
         }
       }
-      
+
       Toast.error(`提交信号失败: ${errorMessage}`);
       setSubmittingSignal(false);
       setShowFHEProgress(false);
@@ -475,66 +476,75 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       <div className="channel-detail-modal">
         {/* 频道基本信息 */}
         <Card style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 16 }}>
-            <Avatar 
-              size="large"
-              src={ipfsData?.logo ? ipfsData.logo.replace('ipfs://', 'https://ipfs.io/ipfs/') : undefined}
-              style={{ 
-                marginRight: 16,
-                flexShrink: 0,
-                backgroundColor: !ipfsData?.logo ? 'var(--semi-color-primary)' : undefined
-              }}
-            >
-              {!ipfsData?.logo && ipfsData?.name ? ipfsData.name.charAt(0).toUpperCase() : 'C'}
-            </Avatar>
-            
-            <div style={{ flex: 1 }}>
-              <Title heading={4} style={{ margin: 0, marginBottom: 8 }}>
-                {ipfsData?.name || `频道 ${channel.channelId.toString()}`}
-              </Title>
-              
-              <Text type="secondary" style={{ marginBottom: 12, display: 'block' }}>
-                {ipfsData?.description || '暂无描述'}
-              </Text>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 16 }}>
+              <Avatar
+                size="large"
+                src={ipfsData?.logo ? ipfsData.logo.replace('ipfs://', 'https://ipfs.io/ipfs/') : undefined}
+                style={{
+                  marginRight: 16,
+                  flexShrink: 0,
+                  backgroundColor: !ipfsData?.logo ? 'var(--semi-color-primary)' : undefined
+                }}
+              >
+                {!ipfsData?.logo && ipfsData?.name ? ipfsData.name.charAt(0).toUpperCase() : 'C'}
+              </Avatar>
 
-              <Space wrap>
-                <Tag color="blue">
-                  <IconUser style={{ marginRight: 4 }} />
-                  {totalSubscribers.toString()} 订阅者
-                </Tag>
-                
-                <Tag color="green">
-                  {topics.length} 话题
-                </Tag>
-                
-                {tierInfo.tierCount > 0 && (
-                  <Tag color="orange">
-                    {tierInfo.minPrice === tierInfo.maxPrice 
-                      ? `${tierInfo.minPrice} ETH`
-                      : `${tierInfo.minPrice} - ${tierInfo.maxPrice} ETH`
-                    }
-                  </Tag>
-                )}
+              <div style={{ flex: 1 }}>
+                <Title heading={4} style={{ margin: 0, marginBottom: 8 }}>
+                  {ipfsData?.name || `频道 ${channel.channelId.toString()}`}
+                </Title>
 
-                <Tag color="purple">
-                  ID: {channel.channelId.toString()}
-                </Tag>
-              </Space>
-
-              <div style={{ marginTop: 12 }}>
-                <Text type="tertiary" size="small">
-                  <IconCalendar style={{ marginRight: 4 }} />
-                  创建于 {ContractService.formatTimestamp(channel.createdAt)}
+                <Text type="secondary" style={{ marginBottom: 12, display: 'block' }}>
+                  {ipfsData?.description || '暂无描述'}
                 </Text>
+
+                <Space wrap>
+                  <Tag color="blue">
+                    <IconUser style={{ marginRight: 4 }} />
+                    {totalSubscribers.toString()} 订阅者
+                  </Tag>
+
+                  <Tag color="green">
+                    {topics.length} 话题
+                  </Tag>
+
+                  {tierInfo.tierCount > 0 && (
+                    <Tag color="orange">
+                      {tierInfo.minPrice === tierInfo.maxPrice
+                        ? `${tierInfo.minPrice} ETH`
+                        : `${tierInfo.minPrice} - ${tierInfo.maxPrice} ETH`
+                      }
+                    </Tag>
+                  )}
+
+                  <Tag color="purple">
+                    ID: {channel.channelId.toString()}
+                  </Tag>
+                </Space>
+
+                <div style={{ marginTop: 12 }}>
+                  <Text type="tertiary" size="small">
+                    <IconCalendar style={{ marginRight: 4 }} />
+                    创建于 {ContractService.formatTimestamp(channel.createdAt)}
+                  </Text>
+                </div>
               </div>
             </div>
+            <div>
+              <ChannelSubscribeModal channelId={channel.channelId} />
+            </div>
           </div>
+
 
           {/* 操作按钮 */}
           {isConnected && isOwner && (
             <Space>
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 icon={<IconPlus />}
                 onClick={() => setShowCreateTopic(true)}
               >
@@ -551,7 +561,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               <Spin size="large" />
             </div>
           ) : topics.length === 0 ? (
-            <Empty 
+            <Empty
               title="暂无话题"
               description="该频道还没有创建任何话题"
             />
@@ -561,11 +571,11 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               renderItem={(topic) => {
                 const isExpired = new Date(Number(topic.endDate) * 1000) <= new Date();
                 const canSubmit = (isOwner || isInAllowlist) && !isExpired && fheReady;
-                
+
                 return (
                   <List.Item
                     className={canSubmit ? 'clickable-topic' : ''}
-                    style={{ 
+                    style={{
                       border: '1px solid var(--semi-color-border)',
                       borderRadius: 8,
                       padding: 16,
@@ -589,28 +599,28 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                           <Tag size="small" color={isExpired ? 'red' : 'green'}>
                             {isExpired ? '已结束' : '进行中'}
                           </Tag>
-                        {canSubmit && (
-                          <Tag size="small" color="blue">
-                            点击提交信号
-                          </Tag>
-                        )}
-                        {!canSubmit && !isExpired && (isOwner || isInAllowlist) && !fheReady && (
-                          <Tag size="small" color="orange">
-                            FHE未就绪
-                          </Tag>
-                        )}
-                        {!canSubmit && !isExpired && !(isOwner || isInAllowlist) && (
-                          <Tag size="small" color="grey">
-                            无权限
-                          </Tag>
-                        )}
+                          {canSubmit && (
+                            <Tag size="small" color="blue">
+                              点击提交信号
+                            </Tag>
+                          )}
+                          {!canSubmit && !isExpired && (isOwner || isInAllowlist) && !fheReady && (
+                            <Tag size="small" color="orange">
+                              FHE未就绪
+                            </Tag>
+                          )}
+                          {!canSubmit && !isExpired && !(isOwner || isInAllowlist) && (
+                            <Tag size="small" color="grey">
+                              无权限
+                            </Tag>
+                          )}
                         </Space>
                       </div>
-                      
+
                       <Text type="secondary" style={{ marginBottom: 8, display: 'block' }}>
                         {topic.ipfsData?.description || '暂无描述'}
                       </Text>
-                      
+
                       <Space wrap>
                         <Text size="small" type="tertiary">
                           提交数: {topic.submissionCount.toString()}
@@ -631,7 +641,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         </Card>
 
         <div style={{
-          height:'24px'
+          height: '24px'
         }}></div>
 
         {/* 创建话题弹窗 */}
@@ -644,7 +654,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
           footer={null}
           width={600}
         >
-          <Form 
+          <Form
             onSubmit={handleCreateTopic}
             getFormApi={(formApi) => setFormApiRef(formApi)}
           >
@@ -659,7 +669,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                 为话题起一个简洁明了的标题，让用户快速了解话题内容
               </Text>
             </div>
-            
+
             <Form.Input
               field="description"
               label="话题描述"
@@ -670,7 +680,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                 详细描述话题的背景、目的和参与方式，帮助用户理解话题
               </Text>
             </div>
-            
+
             <Form.Input
               field="endDate"
               label="截止时间"
@@ -690,7 +700,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                 设置话题的结束时间，到期后用户将无法再提交信号
               </Text>
             </div>
-            
+
             <Form.InputNumber
               field="minValue"
               label="最小值"
@@ -714,7 +724,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                 用户可提交信号的最小值，超出范围将自动调整为 默认值
               </Text>
             </div>
-            
+
             <Form.InputNumber
               field="maxValue"
               label="最大值"
@@ -738,7 +748,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                 用户可提交信号的最大值，超出范围将自动调整为 默认值
               </Text>
             </div>
-            
+
             <Form.InputNumber
               field="defaultValue"
               label="默认值"
@@ -762,7 +772,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                 用户提交信号时,如果超出范围会调整到的默认值
               </Text>
             </div>
-            
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
               <Button onClick={() => setShowCreateTopic(false)}>
                 取消
@@ -772,10 +782,10 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               </Button>
             </div>
           </Form>
-         <div style={{
-          height: '24px'
-         }}></div>
-          
+          <div style={{
+            height: '24px'
+          }}></div>
+
         </Modal>
 
         {/* 提交信号弹窗 */}
@@ -795,9 +805,9 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
           {selectedTopicId && (() => {
             const topic = topics.find(t => t.topicId === selectedTopicId);
             if (!topic) return null;
-            
+
             const isExpired = new Date(Number(topic.endDate) * 1000) <= new Date();
-            
+
             return (
               <Card style={{ marginBottom: 20, border: '1px solid var(--semi-color-border)' }}>
                 <div style={{ marginBottom: 12 }}>
@@ -808,7 +818,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                     {topic.ipfsData?.description || '暂无描述'}
                   </Text>
                 </div>
-                
+
                 <Space wrap style={{ marginBottom: 12 }}>
                   <Tag size="small" color="cyan">
                     ID: {topic.topicId.toString()}
@@ -820,10 +830,10 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                     提交数: {topic.submissionCount.toString()}
                   </Tag>
                 </Space>
-                
-                <div style={{ 
-                  padding: 12, 
-                  backgroundColor: 'var(--semi-color-fill-0)', 
+
+                <div style={{
+                  padding: 12,
+                  backgroundColor: 'var(--semi-color-fill-0)',
                   borderRadius: 6,
                   marginBottom: 12
                 }}>
@@ -848,10 +858,10 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                     </div>
                   </div>
                 </div>
-                
-                <div style={{ 
-                  padding: 8, 
-                  backgroundColor: 'var(--semi-color-fill-1)', 
+
+                <div style={{
+                  padding: 8,
+                  backgroundColor: 'var(--semi-color-fill-1)',
                   borderRadius: 4,
                   display: 'flex',
                   alignItems: 'center',
@@ -870,12 +880,12 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               </Card>
             );
           })()}
-          
+
           <Form onSubmit={handleSubmitSignal}>
             {(() => {
               const topic = selectedTopicId ? topics.find(t => t.topicId === selectedTopicId) : null;
               if (!topic) return null;
-              
+
               return (
                 <Form.InputNumber
                   field="value"
@@ -883,19 +893,19 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                   placeholder={`请输入 ${topic.minValue} - ${topic.maxValue} 之间的整数`}
                   rules={[
                     { required: true, message: '请输入信号值' },
-                    { 
+                    {
                       validator: (_, value) => {
                         if (!value) return true;
-                        
+
                         const numValue = Number(value);
                         if (!Number.isInteger(numValue)) {
                           return new Error('请输入整数');
                         }
-                        
+
                         if (numValue < topic.minValue || numValue > topic.maxValue) {
                           return new Error(`请输入 ${topic.minValue} - ${topic.maxValue} 之间的整数`);
                         }
-                        
+
                         return true;
                       }
                     }
@@ -915,9 +925,9 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                 请输入符合话题设定的整数，超出范围将自动调整为默认值
               </Text>
             </div>
-            
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
-              <Button 
+              <Button
                 onClick={() => {
                   setShowSubmitSignal(false);
                   setSelectedTopicId(null);
@@ -927,26 +937,26 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               >
                 取消
               </Button>
-              <Button 
-                htmlType="submit" 
-                type="primary" 
+              <Button
+                htmlType="submit"
+                type="primary"
                 loading={submittingSignal || isWritePending || isConfirming}
                 disabled={!fheReady || submittingSignal || isWritePending}
               >
-                {!fheReady ? 'FHE未就绪' : 
-                 isWritePending ? '提交中...' : 
-                 isConfirming ? '确认中...' : 
-                 '提交信号'}
+                {!fheReady ? 'FHE未就绪' :
+                  isWritePending ? '提交中...' :
+                    isConfirming ? '确认中...' :
+                      '提交信号'}
               </Button>
             </div>
           </Form>
 
           <div style={{
-          height:'24px'
-        }}></div>
+            height: '24px'
+          }}></div>
         </Modal>
       </div>
-      
+
       {/* FHE 进度 Toast */}
       <FHEProgressToast
         visible={showFHEProgress}
