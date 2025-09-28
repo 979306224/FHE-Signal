@@ -1,92 +1,193 @@
 .channel-card-wrapper {
   width: 100%;
-  height: 180px;
+  height: 200px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  &:hover {
+    transform: translateY(-4px);
+    
+    .channel-card {
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+      border-color: var(--semi-color-primary-light-hover);
+    }
+  }
   
   .channel-card {
     width: 100%;
     height: 100%;
+    border: 1px solid var(--semi-color-border);
+    border-radius: 12px;
+    background: var(--semi-color-bg-0);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     
-    .semi-card {
-      width: 100%;
-      height: 100%;
+    // 卡片头部
+    .card-header {
+      padding: 16px 16px 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      flex-shrink: 0;
       
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-      }
-    }
-  }
-}
-
-.channel-card-wrapper {
-  .channel-card {
-    .channel-avatar {
-      .semi-avatar {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      }
-    }
-
-    .channel-title {
-      color: var(--semi-color-text-0);
-      font-weight: 600;
-    }
-
-    .channel-description {
-      color: var(--semi-color-text-2);
-      line-height: 1.5;
-    }
-
-    .channel-stats {
-      // 滚动条样式
-      &::-webkit-scrollbar {
-        height: 4px;
-      }
-      
-      &::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      
-      &::-webkit-scrollbar-thumb {
-        background: var(--semi-color-border);
-        border-radius: 2px;
-      }
-      
-      &::-webkit-scrollbar-thumb:hover {
-        background: var(--semi-color-text-3);
-      }
-
-      .semi-tag {
-        &.subscribers {
-          background-color: rgba(var(--semi-blue-5), 0.1);
-          color: var(--semi-color-primary);
+      .avatar-section {
+        flex-shrink: 0;
+        
+        .channel-avatar {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border: 2px solid var(--semi-color-border);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
-
-        &.topics {
-          background-color: rgba(var(--semi-green-5), 0.1);
-          color: var(--semi-color-success);
+      }
+      
+      .title-section {
+        flex: 1;
+        min-width: 0;
+        
+        .channel-title {
+          color: var(--semi-color-text-0);
+          font-weight: 600;
+          font-size: 16px;
+          line-height: 1.4;
+          margin: 0 0 6px 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
-
-        &.price {
-          background-color: rgba(var(--semi-orange-5), 0.1);
-          color: var(--semi-color-warning);
+        
+        .channel-description {
+          color: var(--semi-color-text-2);
+          font-size: 13px;
+          line-height: 1.4;
+          display: -webkit-box;
+          -webkit-box-orient: vertical;
+          -webkit-line-clamp: 2;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
       }
     }
-
-    .channel-footer {
+    
+    // 统计标签区域
+    .stats-section {
+      padding: 0 16px 12px;
+      flex-shrink: 0;
+      
+      .stats-container {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 2px;
+        
+        // 自定义滚动条
+        &::-webkit-scrollbar {
+          height: 3px;
+        }
+        
+        &::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        
+        &::-webkit-scrollbar-thumb {
+          background: var(--semi-color-border);
+          border-radius: 2px;
+        }
+        
+        &::-webkit-scrollbar-thumb:hover {
+          background: var(--semi-color-text-3);
+        }
+        
+        .stat-tag {
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 8px;
+          border-radius: 6px;
+          font-size: 12px;
+          font-weight: 500;
+          border: none;
+          
+          .stat-icon {
+            font-size: 12px;
+          }
+          
+          .stat-text {
+            white-space: nowrap;
+          }
+          
+          // 不同颜色的标签样式
+          &.semi-tag-blue {
+            background-color: rgba(var(--semi-blue-5), 0.1);
+            color: var(--semi-color-primary);
+            border: 1px solid rgba(var(--semi-blue-5), 0.2);
+          }
+          
+          &.semi-tag-green {
+            background-color: rgba(var(--semi-green-5), 0.1);
+            color: var(--semi-color-success);
+            border: 1px solid rgba(var(--semi-green-5), 0.2);
+          }
+          
+          &.semi-tag-orange {
+            background-color: rgba(var(--semi-orange-5), 0.1);
+            color: var(--semi-color-warning);
+            border: 1px solid rgba(var(--semi-orange-5), 0.2);
+          }
+        }
+      }
+    }
+    
+    // 卡片底部
+    .card-footer {
+      margin-top: auto;
+      padding: 12px 16px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       border-top: 1px solid var(--semi-color-border);
-      padding-top: 8px;
-      margin-top: 12px;
-
-      .channel-date {
-        color: var(--semi-color-text-3);
-        font-size: 12px;
+      // background: var(--semi-color-bg-1);
+      
+      .footer-left {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 1;
+        min-width: 0;
+        
+        .footer-icon {
+          color: var(--semi-color-text-3);
+          font-size: 12px;
+          flex-shrink: 0;
+        }
+        
+        .footer-text {
+          color: var(--semi-color-text-3);
+          font-size: 12px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
       }
-
-      .channel-actions {
-        .semi-button {
+      
+      .footer-right {
+        flex-shrink: 0;
+        margin-left: 12px;
+        
+        .subscribe-button {
+          font-size: 12px;
+          height: 28px;
+          padding: 0 12px;
+          border-radius: 6px;
+          font-weight: 500;
+          transition: all 0.2s ease;
+          
           &:hover {
-            transform: scale(1.05);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(var(--semi-color-primary), 0.3);
           }
         }
       }
@@ -95,13 +196,37 @@
 }
 
 // 响应式布局
+@media (max-width: 1200px) {
+  .channel-card-wrapper {
+    height: 190px;
+  }
+}
+
 @media (max-width: 768px) {
   .channel-card-wrapper {
-    height: 160px;
+    height: 180px;
     
     .channel-card {
-      .semi-card {
-        margin-bottom: 12px;
+      .card-header {
+        padding: 14px 14px 10px;
+        
+        .title-section {
+          .channel-title {
+            font-size: 15px;
+          }
+          
+          .channel-description {
+            font-size: 12px;
+          }
+        }
+      }
+      
+      .stats-section {
+        padding: 0 14px 10px;
+      }
+      
+      .card-footer {
+        padding: 10px 14px 14px;
       }
     }
   }
@@ -109,6 +234,69 @@
 
 @media (max-width: 480px) {
   .channel-card-wrapper {
-    height: 140px;
+    height: 170px;
+    
+    .channel-card {
+      .card-header {
+        padding: 12px 12px 8px;
+        gap: 10px;
+        
+        .avatar-section {
+          .channel-avatar {
+            width: 40px;
+            height: 40px;
+          }
+        }
+        
+        .title-section {
+          .channel-title {
+            font-size: 14px;
+          }
+          
+          .channel-description {
+            font-size: 11px;
+            -webkit-line-clamp: 1;
+          }
+        }
+      }
+      
+      .stats-section {
+        padding: 0 12px 8px;
+        
+        .stats-container {
+          .stat-tag {
+            padding: 3px 6px;
+            font-size: 11px;
+          }
+        }
+      }
+      
+      .card-footer {
+        padding: 8px 12px 12px;
+        
+        .footer-right {
+          .subscribe-button {
+            height: 26px;
+            padding: 0 10px;
+            font-size: 11px;
+          }
+        }
+      }
+    }
+  }
+}
+
+// 暗色主题适配
+[data-theme="dark"] {
+  .channel-card-wrapper {
+    .channel-card {
+      background: var(--semi-color-bg-0);
+      border-color: var(--semi-color-border);
+      
+      .card-footer {
+        background: var(--semi-color-bg-1);
+        border-color: var(--semi-color-border);
+      }
+    }
   }
 }

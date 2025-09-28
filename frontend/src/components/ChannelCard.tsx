@@ -1,5 +1,5 @@
-import { Card, Avatar, Tag, Typography, Space, Button } from '@douyinfe/semi-ui';
-import { IconUser, IconCalendar } from '@douyinfe/semi-icons';
+import { Card, Avatar, Tag, Typography, Button, Tooltip } from '@douyinfe/semi-ui';
+import { IconUser, IconCalendar, IconEyeOpened } from '@douyinfe/semi-icons';
 import { useMemo, useState } from 'react';
 import './ChannelCard.less';
 import ChannelDetailModal from './ChannelDetailModal';
@@ -48,151 +48,123 @@ export default function ChannelCard({ channel, ipfsData, onViewDetails, onSubscr
     onViewDetails?.(channel.channelId);
   };
 
-  const handleSubscribe = () => {
+  const handleSubscribe = (e: React.MouseEvent) => {
+    e.stopPropagation();
     onSubscribe?.(channel.channelId);
   };
 
+  const channelName = ipfsData?.name || `频道 ${channel.channelId.toString()}`;
+  const channelDescription = ipfsData?.description || '暂无描述';
+
   return (
     <>
-    <div
-      className="channel-card-wrapper"
-      style={{ 
-        width: '100%', 
-        height: '180px',
-        cursor: 'pointer',
-        transition: 'all 0.2s ease',
-      }}
-      onClick={handleViewDetails}
-    >
-    <Card
-      className="channel-card"
-      style={{ 
-        border: '1px solid var(--semi-color-border)',
-        height: '100%',
-        width: '100%'
-      }}
-      bodyStyle={{ padding: 16, height: '100%' }}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        {/* 头部信息 */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 12, flexShrink: 0 }}>
-          <Avatar 
-            size="large"
-            src={ipfsData?.logo ? ipfsData.logo.replace('ipfs://', 'https://ipfs.io/ipfs/') : undefined}
-            style={{ 
-              marginRight: 12,
-              flexShrink: 0,
-              backgroundColor: !ipfsData?.logo ? 'var(--semi-color-primary)' : undefined
-            }}
-          >
-            {!ipfsData?.logo && ipfsData?.name ? ipfsData.name.charAt(0).toUpperCase() : 'C'}
-          </Avatar>
-          
-          <div style={{ flex: 1, overflow: 'hidden' }}>
-            <Typography.Title 
-              heading={4} 
-              style={{ 
-                margin: 0, 
-                marginBottom: 8,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                fontSize: '18px',
-                fontWeight: 'bold'
-              }}
-            >
-              {ipfsData?.name || `频道 ${channel.channelId.toString()}`}
-            </Typography.Title>
+      <div className="channel-card-wrapper" onClick={handleViewDetails}>
+        <Card className="channel-card" bodyStyle={{ padding: 0, height: '100%' }}>
+          {/* 卡片头部 - 头像和标题区域 */}
+          <div className="card-header">
+            <div className="avatar-section">
+              <Avatar 
+                size="large"
+                src={ipfsData?.logo ? ipfsData.logo.replace('ipfs://', 'https://ipfs.io/ipfs/') : undefined}
+                className="channel-avatar"
+              >
+                {!ipfsData?.logo && ipfsData?.name ? ipfsData.name.charAt(0).toUpperCase() : 'C'}
+              </Avatar>
+            </div>
             
-            <Text 
-              type="tertiary" 
-              size="small"
-              style={{
-                display: '-webkit-box',
-                WebkitBoxOrient: 'vertical',
-                WebkitLineClamp: 2,
-                overflow: 'hidden',
-                lineHeight: '1.4'
-              }}
-            >
-              {ipfsData?.description || '暂无描述'}
-            </Text>
+            <div className="title-section">
+              <Tooltip content={channelName} position="top">
+                <Typography.Title 
+                  heading={4} 
+                  className="channel-title"
+                  ellipsis={{ showTooltip: false }}
+                >
+                  {channelName}
+                </Typography.Title>
+              </Tooltip>
+              
+              <Tooltip content={channelDescription} position="top">
+                <Text 
+                  type="tertiary" 
+                  size="small"
+                  className="channel-description"
+                  ellipsis={{ showTooltip: false, rows: 2 }}
+                >
+                  {channelDescription}
+                </Text>
+              </Tooltip>
+            </div>
           </div>
-        </div>
 
-        {/* 统计信息 - 可滚动区域 */}
-        <div style={{ 
-          flex: 1, 
-          overflow: 'hidden',
-          minHeight: 0
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            gap: 8, 
-            overflowX: 'auto',
-            overflowY: 'hidden',
-            paddingBottom: 4,
-            scrollbarWidth: 'thin',
-            scrollbarColor: 'var(--semi-color-border) transparent'
-          }}>
-            <Tag size="small" color="blue" style={{ flexShrink: 0 }}>
-              <IconUser style={{ marginRight: 4 }} />
-              {totalSubscribers.toString()} 订阅者
-            </Tag>
-            
-            <Tag size="small" color="green" style={{ flexShrink: 0 }}>
-              {channel.topicIds?.length || 0} Topic
-            </Tag>
-            
-            {tierInfo.tierCount > 0 && (
-              <Tag size="small" color="orange" style={{ flexShrink: 0 }}>
-                {tierInfo.minPrice === tierInfo.maxPrice 
-                  ? `${tierInfo.minPrice} ETH`
-                  : `${tierInfo.minPrice} - ${tierInfo.maxPrice} ETH`
-                }
-              </Tag>
-            )}
+          {/* 统计标签区域 */}
+          <div className="stats-section">
+            <div className="stats-container">
+              <Tooltip content={`总订阅者数量: ${totalSubscribers.toString()}`} position="top">
+                <Tag size="small" color="blue" className="stat-tag">
+                  <IconUser className="stat-icon" />
+                  <span className="stat-text">{totalSubscribers.toString()}</span>
+                </Tag>
+              </Tooltip>
+              
+              <Tooltip content={`话题数量: ${channel.topicIds?.length || 0}`} position="top">
+                <Tag size="small" color="green" className="stat-tag">
+                  <IconEyeOpened className="stat-icon" />
+                  <span className="stat-text">{channel.topicIds?.length || 0}</span>
+                </Tag>
+              </Tooltip>
+              
+              {tierInfo.tierCount > 0 && (
+                <Tooltip 
+                  content={
+                    tierInfo.minPrice === tierInfo.maxPrice 
+                      ? `订阅价格: ${tierInfo.minPrice} ETH`
+                      : `订阅价格范围: ${tierInfo.minPrice} - ${tierInfo.maxPrice} ETH`
+                  } 
+                  position="top"
+                >
+                  <Tag size="small" color="orange" className="stat-tag">
+                    <span className="stat-text">
+                      {tierInfo.minPrice === tierInfo.maxPrice 
+                        ? `${tierInfo.minPrice} ETH`
+                        : `${tierInfo.minPrice}-${tierInfo.maxPrice} ETH`
+                      }
+                    </span>
+                  </Tag>
+                </Tooltip>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* 底部信息 - 固定在底部 */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          paddingTop: 8,
-          flexShrink: 0,
+          {/* 卡片底部 - 时间和操作按钮 */}
+          <div className="card-footer">
+            <div className="footer-left">
+              <IconCalendar className="footer-icon" />
+              <Text type="tertiary" size="small" className="footer-text">
+                {formattedCreatedAt}
+              </Text>
+            </div>
 
-        }}>
-          <Space align="center">
-            <IconCalendar size="small" style={{ color: 'var(--semi-color-text-3)' }} />
-            <Text type="tertiary" size="small">
-              {formattedCreatedAt}
-            </Text>
-          </Space>
-
-          <div onClick={(e) => e.stopPropagation()}>
-            <Button 
-              theme="borderless" 
-              type="primary" 
-              size="small"
-              onClick={handleSubscribe}
-            >
-              订阅
-            </Button>
+            <div className="footer-right">
+              <Button 
+                type="primary" 
+                size="small"
+                className="subscribe-button"
+                onClick={handleSubscribe}
+              >
+                查看
+              </Button>
+            </div>
           </div>
-        </div>
+        </Card>
       </div>
-    </Card>
-    </div>
-    
-    {/* 频道详情弹窗 */}
-    <ChannelDetailModal
-      visible={showDetailModal}
-      onClose={() => setShowDetailModal(false)}
-      channel={channel}
-      ipfsData={ipfsData}
-    />
-  </>
+      
+      {/* 频道详情弹窗 */}
+      <ChannelDetailModal
+        visible={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        channel={channel}
+        ipfsData={ipfsData}
+      />
+    </>
   );
 }
