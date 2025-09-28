@@ -436,7 +436,7 @@ export class ContractService {
     }
   }
 
-  // ============ 写入方法 ============
+  // ============ Write Methods ============
 
   /**
    * Create channel
@@ -468,10 +468,10 @@ export class ContractService {
         let channelId: bigint | undefined;
         
         try {
-          // ChannelCreated事件的签名哈希 (keccak256("ChannelCreated(uint256,address,string)"))
+          // ChannelCreated event signature hash (keccak256("ChannelCreated(uint256,address,string)"))
           const channelCreatedSignature = '0x7c6b8e2c936da8f68bb7780c28a2a9ce07d9c1d3f86e8a2e96ca9b1b59b6a4e8';
           
-          // 查找ChannelCreated事件（使用已知的事件签名或简单匹配）
+          // Find ChannelCreated event (using known event signature or simple matching)
           const channelCreatedEvent = receipt.logs.find((log: any) => {
             return log.topics && log.topics.length >= 2 && 
                    (log.topics[0] === channelCreatedSignature || 
@@ -479,11 +479,11 @@ export class ContractService {
           });
           
           if (channelCreatedEvent && channelCreatedEvent.topics[1]) {
-            // 第一个indexed参数（channelId）
+            // First indexed parameter (channelId)
             channelId = BigInt(channelCreatedEvent.topics[1]);
-            console.log('创建的频道ID:', channelId.toString());
+            console.log('Created channel ID:', channelId.toString());
           } else {
-            // 降级处理：尝试从第一个有效的日志中解析
+            // Fallback: try to parse from first valid log
             const firstLog = receipt.logs.find((log: any) => 
               log.topics && log.topics.length >= 2
             );
@@ -491,15 +491,15 @@ export class ContractService {
               try {
                 if (firstLog.topics[1]) {
                   channelId = BigInt(firstLog.topics[1]);
-                  console.log('推测的频道ID:', channelId.toString());
+                  console.log('Inferred channel ID:', channelId.toString());
                 }
               } catch {
-                console.warn('无法解析频道ID');
+                console.warn('Unable to parse channel ID');
               }
             }
           }
         } catch (eventError) {
-          console.warn('提取频道ID失败:', eventError);
+          console.warn('Failed to extract channel ID:', eventError);
         }
 
         showSuccessTransactionToast({ id: toastId, action: 'Create Channel', hash });
@@ -522,7 +522,7 @@ export class ContractService {
         };
       }
     } catch (error) {
-      console.error('Create Channel失败:', error);
+      console.error('Create Channel failed:', error);
 
       showErrorTransactionToast({
         id: toastId,
@@ -539,7 +539,7 @@ export class ContractService {
   }
 
   /**
-   * 创建Topic
+   * Create Topic
    */
   static async createTopic(
     channelId: bigint,
@@ -577,7 +577,7 @@ export class ContractService {
         success: receipt.status === 'success'
       };
     } catch (error) {
-      console.error('创建Topic失败:', error);
+      console.error('Create Topic failed:', error);
 
       showErrorTransactionToast({
         id: toastId,
@@ -594,7 +594,7 @@ export class ContractService {
   }
 
   /**
-   * 批量添加到Allowlist
+   * Batch add to Allowlist
    */
   static async batchAddToAllowlist(params: BatchAllowlistParams): Promise<TransactionResult> {
     const toastId = showPendingTransactionToast({ action: 'Batch Add to Allowlist' });
@@ -625,7 +625,7 @@ export class ContractService {
         success: receipt.status === 'success'
       };
     } catch (error) {
-      console.error('批量添加到Allowlist失败:', error);
+      console.error('Batch add to Allowlist failed:', error);
 
       showErrorTransactionToast({
         id: toastId,
@@ -642,7 +642,7 @@ export class ContractService {
   }
 
   /**
-   * 批量从Allowlist移除
+   * Batch remove from Allowlist
    */
   static async batchRemoveFromAllowlist(params: BatchRemoveParams): Promise<TransactionResult> {
     const toastId = showPendingTransactionToast({ action: 'Batch Remove from Allowlist' });
@@ -673,7 +673,7 @@ export class ContractService {
         success: receipt.status === 'success'
       };
     } catch (error) {
-      console.error('批量从Allowlist移除失败:', error);
+      console.error('Batch remove from Allowlist failed:', error);
 
       showErrorTransactionToast({
         id: toastId,
@@ -728,7 +728,7 @@ export class ContractService {
         success: receipt.status === 'success'
       };
     } catch (error) {
-      console.error('订阅失败:', error);
+      console.error('Subscription failed:', error);
 
       showErrorTransactionToast({
         id: toastId,
@@ -745,14 +745,14 @@ export class ContractService {
   }
 
   /**
-   * 获取提交Signal的合约调用配置（用于useWriteContract）
+   * Get contract call configuration for submitting Signal (for useWriteContract)
    */
   static getSubmitSignalConfig(
     topicId: bigint,
     encryptedValue: Uint8Array,
     proof: Uint8Array
   ) {
-    // 转换 Uint8Array 为 hex 字符串
+    // Convert Uint8Array to hex string
     const encryptedValueHex = uint8ArrayToHex(encryptedValue);
     const proofHex = uint8ArrayToHex(proof);
 
@@ -765,7 +765,7 @@ export class ContractService {
   }
 
   /**
-   * 提交Signal（需要FHE加密）
+   * Submit Signal (requires FHE encryption)
    */
   static async submitSignal(
     topicId: bigint,
@@ -774,7 +774,7 @@ export class ContractService {
   ): Promise<TransactionResult> {
     const toastId = showPendingTransactionToast({ action: 'Submit Signal' });
     try {
-      // 转换 Uint8Array 为 hex 字符串
+      // Convert Uint8Array to hex string
       const encryptedValueHex = uint8ArrayToHex(encryptedValue);
       const proofHex = uint8ArrayToHex(proof);
 
@@ -804,7 +804,7 @@ export class ContractService {
         success: receipt.status === 'success'
       };
     } catch (error) {
-      console.error('提交Signal失败:', error);
+      console.error('Submit Signal failed:', error);
 
       showErrorTransactionToast({
         id: toastId,
@@ -821,7 +821,7 @@ export class ContractService {
   }
 
   /**
-   * 访问Topic结果
+   * Access Topic results
    */
   static async accessTopicResult(
     channelId: bigint,
@@ -856,7 +856,7 @@ export class ContractService {
         success: receipt.status === 'success'
       };
     } catch (error) {
-      console.error('访问Topic结果失败:', error);
+      console.error('Access Topic results failed:', error);
 
       showErrorTransactionToast({
         id: toastId,
@@ -872,59 +872,59 @@ export class ContractService {
     }
   }
 
-  // ============ 工具方法 ============
+  // ============ Utility Methods ============
 
   /**
-   * 将Wei转换为Ether字符串
+   * Convert Wei to Ether string
    */
   static weiToEther(wei: bigint): string {
     return formatEther(wei);
   }
 
   /**
-   * 将Ether字符串转换为Wei
+   * Convert Ether string to Wei
    */
   static etherToWei(ether: string): bigint {
     return parseEther(ether);
   }
 
   /**
-   * 获取合约地址
+   * Get contract addresses
    */
   static getContractAddresses(): ContractAddresses {
     return CONTRACT_ADDRESSES;
   }
 
   /**
-   * 格式化时间戳为可读日期
+   * Format timestamp to readable date
    */
   static formatTimestamp(timestamp: bigint): string {
-    return new Date(Number(timestamp) * 1000).toLocaleString('zh-CN');
+    return new Date(Number(timestamp) * 1000).toLocaleString('en-US');
   }
 
   /**
-   * 检查地址格式
+   * Check address format
    */
   static isValidAddress(address: string): boolean {
     return /^0x[a-fA-F0-9]{40}$/.test(address);
   }
 
   /**
-   * 获取DurationTier的显示名称
+   * Get DurationTier display name
    */
   static getDurationTierName(tier: DurationTier): string {
     const names = {
-      [DurationTier.OneDay]: '1天',
-      [DurationTier.Month]: '1个月',
-      [DurationTier.Quarter]: '3个月',
-      [DurationTier.HalfYear]: '6个月',
-      [DurationTier.Year]: '1年'
+      [DurationTier.OneDay]: '1 Day',
+      [DurationTier.Month]: '1 Month',
+      [DurationTier.Quarter]: '3 Months',
+      [DurationTier.HalfYear]: '6 Months',
+      [DurationTier.Year]: '1 Year'
     } as const;
-    return names[tier as keyof typeof names] || '未知';
+    return names[tier as keyof typeof names] || 'Unknown';
   }
 
   /**
-   * 获取DurationTier的秒数
+   * Get DurationTier seconds
    */
   static getDurationTierSeconds(tier: DurationTier): number {
     const seconds = {

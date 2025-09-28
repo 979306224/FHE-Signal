@@ -222,18 +222,18 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                 await loadAllowlist(currentPage);
             } else {
                 Toast.error(`Add failed: ${result.error || 'Unknown error'}`);
-                setAddStep(1); // 回到预览步骤
+                setAddStep(1); // Back to preview step
             }
         } catch (error) {
-            console.error('添加用户失败:', error);
-            Toast.error(`添加失败: ${error instanceof Error ? error.message : '未知错误'}`);
-            setAddStep(1); // 回到预览步骤
+            console.error('Add user failed:', error);
+            Toast.error(`Add failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            setAddStep(1); // Back to preview step
         } finally {
             setAddingUsers(false);
         }
     }, [isConnected, userAddress, channelId, currentPage, loadAllowlist, previewData]);
 
-    // 重置添加表单
+    // Reset add form
     const resetAddForm = useCallback(() => {
         setShowAddForm(false);
         setAddStep(0);
@@ -241,24 +241,24 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
         setTableData([{ id: '1', address: '', weight: '100' }]);
     }, []);
 
-    // 处理主弹窗关闭
+    // Handle main modal close
     const handleMainModalClose = useCallback(() => {
-        // 重置添加表单状态
+        // Reset add form state
         if (showAddForm) {
             resetAddForm();
         }
         onClose();
     }, [showAddForm, resetAddForm, onClose]);
 
-    // 处理移除用户
+    // Handle remove users
     const handleRemoveUsers = useCallback(async (users: string[]) => {
         if (!isConnected || !userAddress) {
-            Toast.error('请先连接钱包');
+            Toast.error('Please connect wallet first');
             return;
         }
 
         if (users.length === 0) {
-            Toast.error('请选择要移除的用户');
+            Toast.error('Please select users to remove');
             return;
         }
 
@@ -273,28 +273,28 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
             const result = await ContractService.batchRemoveFromAllowlist(params);
 
             if (result.success) {
-                Toast.success(`成功从白名单移除 ${users.length} 个用户！`);
+                Toast.success(`Successfully removed ${users.length} users from allowlist!`);
                 await loadAllowlist(currentPage);
             } else {
-                Toast.error(`移除失败: ${result.error || '未知错误'}`);
+                Toast.error(`Remove failed: ${result.error || 'Unknown error'}`);
             }
         } catch (error) {
-            console.error('移除用户失败:', error);
-            Toast.error(`移除失败: ${error instanceof Error ? error.message : '未知错误'}`);
+            console.error('Remove user failed:', error);
+            Toast.error(`Remove failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             setRemovingUsers(new Set());
         }
     }, [isConnected, userAddress, channelId, currentPage, loadAllowlist]);
 
-    // 刷新数据
+    // Refresh data
     const handleRefresh = useCallback(async () => {
         await loadAllowlist(currentPage);
     }, [loadAllowlist, currentPage]);
 
-    // 表格列定义
+    // Table column definitions
     const columns = [
         {
-            title: '用户地址',
+            title: 'User Address',
             dataIndex: 'user',
             key: 'user',
             render: (address: string) => (
@@ -304,7 +304,7 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
             ),
         },
         {
-            title: '权重',
+            title: 'Weight',
             dataIndex: 'weight',
             key: 'weight',
             render: (weight: bigint) => (
@@ -314,7 +314,7 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
             ),
         },
         {
-            title: '操作',
+            title: 'Actions',
             key: 'actions',
             render: (record: AllowlistEntry) => (
                 <Space>
@@ -325,14 +325,14 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                         onClick={() => handleRemoveUsers([record.user])}
                         loading={removingUsers.has(record.user)}
                     >
-                        移除
+                        Remove
                     </Button>
                 </Space>
             ),
         },
     ];
 
-    // 分页配置
+    // Pagination configuration
     const pagination = {
         currentPage,
         pageSize,
@@ -348,7 +348,7 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                 title={
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <IconUser />
-                        <span>添加用户到白名单</span>
+                        <span>Add Users to Allowlist</span>
                     </div>
                 }
                 visible={showAddForm}
@@ -361,36 +361,36 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
             >
                         <div style={{ marginBottom: 20 }}>
                             <Steps current={addStep} size="small">
-                                <Steps.Step title="输入信息" icon={<IconEdit />} />
-                                <Steps.Step title="预览确认" icon={<IconUser />} />
-                                <Steps.Step title="提交中" icon={<IconCheckCircleStroked />} />
+                                <Steps.Step title="Input Information" icon={<IconEdit />} />
+                                <Steps.Step title="Preview Confirmation" icon={<IconUser />} />
+                                <Steps.Step title="Submitting" icon={<IconCheckCircleStroked />} />
                             </Steps>
                         </div>
 
                         {addStep === 0 && (
                             <div className="add-users-form">
                                 <Card
-                                    title="输入用户信息"
+                                    title="Input User Information"
                                     headerStyle={{ padding: '12px 20px' }}
                                     bodyStyle={{ padding: '20px' }}
                                 >
                                     <div style={{ marginBottom: 16 }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                            <Text strong>用户列表</Text>
+                                            <Text strong>User List</Text>
                                             <Button
                                                 type="primary"
                                                 size="small"
                                                 icon={<IconPlus />}
                                                 onClick={addNewRow}
                                             >
-                                                添加行
+                                                Add Row
                                             </Button>
                                         </div>
 
                                         <Table
                                             columns={[
                                                 {
-                                                    title: '序号',
+                                                    title: 'No.',
                                                     width: 60,
                                                     render: (_, __, index) => index + 1
                                                 },
@@ -398,7 +398,7 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                                                     title: (
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                                             <IconUser size="small" />
-                                                            <span>用户地址</span>
+                                                            <span>User Address</span>
                                                         </div>
                                                     ),
                                                     dataIndex: 'address',
@@ -421,7 +421,7 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                                                     )
                                                 },
                                                 {
-                                                    title: '权重',
+                                                    title: 'Weight',
                                                     dataIndex: 'weight',
                                                     width: 150,
                                                     render: (value: string, record: UserEntry) => (
@@ -443,7 +443,7 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                                                     )
                                                 },
                                                 {
-                                                    title: '操作',
+                                                    title: 'Actions',
                                                     width: 80,
                                                     render: (_, record: UserEntry) => (
                                                         <Button
@@ -477,23 +477,23 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                                         marginBottom: 20
                                     }}>
                                         <Text strong size="small" style={{ display: 'block', marginBottom: 8 }}>
-                                            📝 操作说明：
+                                            📝 Instructions:
                                         </Text>
                                         <Text type="secondary" size="small">
-                                            1. 在地址列中输入以 0x 开头的以太坊地址<br/>
-                                            2. 在权重列中输入对应的权重值（正整数）<br/>
-                                            3. 点击"添加行"可以添加更多用户<br/>
-                                            4. 点击删除按钮可以移除该行用户<br/>
-                                            5. 系统会实时验证输入格式
+                                            1. Enter Ethereum addresses starting with 0x in the address column<br/>
+                                            2. Enter corresponding weight values (positive integers) in the weight column<br/>
+                                            3. Click "Add Row" to add more users<br/>
+                                            4. Click the delete button to remove that row of users<br/>
+                                            5. The system will validate input format in real-time
                                         </Text>
                                     </div>
 
                                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
                                         <Button onClick={resetAddForm} disabled={addingUsers}>
-                                            取消
+                                            Cancel
                                         </Button>
                                         <Button type="primary" onClick={handleFormSubmit} disabled={addingUsers}>
-                                            下一步
+                                            Next
                                         </Button>
                                     </div>
                                 </Card>
@@ -506,7 +506,7 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                                     title={
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                             <IconCheckCircleStroked />
-                                            <span>预览确认 - 即将添加 {previewData.users.length} 个用户</span>
+                                            <span>Preview Confirmation - About to add {previewData.users.length} users</span>
                                         </div>
                                     }
                                     headerStyle={{ padding: '12px 20px' }}
@@ -526,7 +526,7 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                                                     render: (_, __, index) => index + 1
                                                 },
                                                 {
-                                                    title: '用户地址',
+                                                    title: 'User Address',
                                                     dataIndex: 'user',
                                                     render: (address: string) => (
                                                         <Text code style={{ fontSize: '12px' }}>
@@ -535,7 +535,7 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                                                     ),
                                                 },
                                                 {
-                                                    title: '权重',
+                                                    title: 'Weight',
                                                     dataIndex: 'weight',
                                                     width: 100,
                                                     render: (weight: bigint) => (
@@ -563,21 +563,21 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                                         border: '1px solid var(--semi-color-success-light-active)'
                                     }}>
                                         <Text size="small" style={{ color: 'var(--semi-color-success)' }}>
-                                            ✓ 数据验证通过，共 {previewData.users.length} 个用户，
-                                            总权重: {previewData.weights.reduce((sum, w) => sum + w, 0n).toString()}
+                                            ✓ Data validation passed, {previewData.users.length} users total,
+                                            Total weight: {previewData.weights.reduce((sum, w) => sum + w, 0n).toString()}
                                         </Text>
                                     </div>
 
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
                                         <Button onClick={() => setAddStep(0)} disabled={addingUsers}>
-                                            上一步
+                                            Previous
                                         </Button>
                                         <Button
                                             type="primary"
                                             onClick={handleConfirmAdd}
                                             loading={addingUsers}
                                         >
-                                            {addingUsers ? '添加中...' : '确认添加'}
+                                            {addingUsers ? 'Adding...' : 'Confirm Add'}
                                         </Button>
                                     </div>
                                 </Card>
@@ -593,11 +593,11 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                                     }}>
                                         <Spin size="large" />
                                         <div style={{ marginTop: 16 }}>
-                                            <Text>正在提交交易，请稍候...</Text>
+                                            <Text>Submitting transaction, please wait...</Text>
                                         </div>
                                         <div style={{ marginTop: 8 }}>
                                             <Text type="tertiary" size="small">
-                                                请在钱包中确认交易
+                                                Please confirm the transaction in your wallet
                                             </Text>
                                         </div>
                                     </div>
@@ -612,7 +612,7 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                 </Modal>
 
             <Modal
-            title="白名单管理"
+            title="Allowlist Management"
             visible={visible}
             onCancel={handleMainModalClose}
             closeOnEsc={true}
@@ -621,18 +621,18 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
             footer={
                 <Space>
                     <Button onClick={handleMainModalClose}>
-                        关闭
+                        Close
                     </Button>
                     <Button
                         type="primary"
                         icon={<IconPlus />}
                         onClick={() => {
-                            console.log('点击添加用户按钮');
+                            console.log('Click add user button');
                             setShowAddForm(true);
                         }}
                         disabled={!isConnected}
                     >
-                        添加用户
+                        Add User
                     </Button>
                 </Space>
             }
@@ -641,13 +641,13 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                 {loading && (
                     <div className="loading-container">
                         <Spin size="large" />
-                        <Text style={{ marginTop: '16px' }}>加载白名单数据中...</Text>
+                        <Text style={{ marginTop: '16px' }}>Loading allowlist data...</Text>
                     </div>
                 )}
 
                 {error && (
                     <div className="error-container">
-                        <Text type="danger">加载失败: {error}</Text>
+                        <Text type="danger">Loading failed: {error}</Text>
                         <Button
                             type="tertiary"
                             size="small"
@@ -655,7 +655,7 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                             onClick={handleRefresh}
                             style={{ marginLeft: '12px' }}
                         >
-                            重试
+                            Retry
                         </Button>
                     </div>
                 )}
@@ -665,10 +665,10 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                         <div className="allowlist-header">
                             <div className="header-info">
                                 <Title heading={5} style={{ margin: 0 }}>
-                                    频道白名单
+                                    Channel Allowlist
                                 </Title>
                                 <Text type="secondary">
-                                    频道ID: {channelId.toString()} | 总用户数: {totalCount}
+                                    Channel ID: {channelId.toString()} | Total Users: {totalCount}
                                 </Text>
                             </div>
                             <Button
@@ -677,7 +677,7 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                                 onClick={handleRefresh}
                                 loading={loading}
                             >
-                                刷新
+                                Refresh
                             </Button>
                         </div>
 
@@ -693,7 +693,7 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                             />
                         ) : (
                             <div className="empty-container">
-                                <Text type="secondary">暂无白名单用户</Text>
+                                <Text type="secondary">No allowlist users</Text>
                             </div>
                         )}
                     </div>

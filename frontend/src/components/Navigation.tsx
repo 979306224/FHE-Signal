@@ -19,7 +19,7 @@ function Navigation() {
     },
     {
       itemKey: '/channelList',
-      text: 'Channel List',
+      text: 'Channel',
       icon: <IconInfoCircle />,
       to: '/channelList'
     }

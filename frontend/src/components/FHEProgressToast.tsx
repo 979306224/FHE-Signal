@@ -40,7 +40,7 @@ const FHEProgressToast: React.FC<FHEProgressToastProps> = ({
       setProgress(newProgress);
       
       if (currentStep === totalSteps) {
-        // 完成时延迟一下再调用回调
+        // Delay a bit before calling callback when complete
         setTimeout(() => {
           onComplete?.();
         }, 500);
@@ -72,7 +72,7 @@ const FHEProgressToast: React.FC<FHEProgressToastProps> = ({
     </div>
   );
 
-  // 使用 Portal 将组件渲染到 body
+  // Use Portal to render component to body
   return createPortal(toastContent, document.body);
 };
 

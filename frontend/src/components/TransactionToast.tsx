@@ -119,9 +119,9 @@ export const showSuccessTransactionToast = (
 ): void => {
   const { id, action, hash, message } = options;
   
-  // 更新现有的toast为成功状态，保持同一个toast实例
+  // Update existing toast to success state, keeping the same toast instance
   Toast.info({
-    id: id, // 使用相同的ID来更新pending toast
+    id: id, // Use same ID to update pending toast
     duration: 4,
     showClose: true,
     stack: true,
@@ -146,15 +146,15 @@ export const showErrorTransactionToast = (options: TransactionToastOptions): str
   return toastId;
 };
 
-// 新增：更新现有toast为错误状态
+  // New: Update existing toast to error state
 export const updateTransactionToastToError = (
   options: TransactionToastOptions & { id: string }
 ): void => {
   const { id, action, hash, message } = options;
   
-  // 更新现有的toast为错误状态，保持同一个toast实例
+  // Update existing toast to error state, keeping the same toast instance
   Toast.info({
-    id: id, // 使用相同的ID来更新pending toast
+    id: id, // Use same ID to update pending toast
     duration: 6,
     showClose: true,
     stack: true,

@@ -11,7 +11,7 @@ import './ChannelSubscribeModal.less';
 
 const { Title, Text } = Typography;
 
-// NFT合约ABI
+// NFT contract ABI
 const CHANNEL_NFT_ABI = parseAbi([
   'function getSubscription(uint256 tokenId) view returns ((uint256 channelId, uint256 expiresAt, uint8 tier, address subscriber, uint256 mintedAt) subscription)',
   'function isSubscriptionValid(uint256 tokenId) view returns (bool)',
@@ -21,7 +21,7 @@ const CHANNEL_NFT_ABI = parseAbi([
   'function ownerOf(uint256 tokenId) view returns (address)'
 ]);
 
-// 从NFT合约获取订阅信息
+// Get subscription info from NFT contract
 async function getSubscriptionFromNFTContract(nftContractAddress: string, tokenId: bigint): Promise<SubscriptionNFT> {
   const result = await readContract(wagmiConfig, {
     address: nftContractAddress as Address,
@@ -33,7 +33,7 @@ async function getSubscriptionFromNFTContract(nftContractAddress: string, tokenI
   return result as unknown as SubscriptionNFT;
 }
 
-// 从NFT合约检查订阅是否有效
+// Check if subscription is valid from NFT contract
 async function isSubscriptionValidFromNFTContract(nftContractAddress: string, tokenId: bigint): Promise<boolean> {
   const result = await readContract(wagmiConfig, {
     address: nftContractAddress as Address,

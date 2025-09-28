@@ -954,10 +954,10 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               placeholder="Please select deadline"
               rules={[{ required: true, message: 'Please select deadline' }]}
               initValue={(() => {
-                // 默认设置为1个星期后
+                // Default to 1 week later
                 const oneWeekLater = new Date();
                 oneWeekLater.setDate(oneWeekLater.getDate() + 7);
-                // 格式化为 datetime-local 需要的格式 (YYYY-MM-DDTHH:MM)
+                // Format to datetime-local required format (YYYY-MM-DDTHH:MM)
                 return oneWeekLater.toISOString().slice(0, 16);
               })()}
             />
@@ -977,11 +977,11 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               min={1}
               max={100}
               onChange={(value) => {
-                // 如果输入值超出1-100范围，自动改为1
+                // If input value exceeds 1-100 range, automatically change to 1
                 const numValue = Number(value);
                 if (value && (numValue < 1 || numValue > 100)) {
                   formApiRef?.setValue('minValue', 1);
-                  Toast.warning('最小值超出范围，已自动调整为1');
+                  Toast.warning('Minimum value out of range, automatically adjusted to 1');
                 }
               }}
             />
@@ -1001,11 +1001,11 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               min={1}
               max={100}
               onChange={(value) => {
-                // 如果输入值超出1-100范围，自动改为100
+                // If input value exceeds 1-100 range, automatically change to 100
                 const numValue = Number(value);
                 if (value && (numValue < 1 || numValue > 100)) {
                   formApiRef?.setValue('maxValue', 100);
-                  Toast.warning('最大值超出范围，已自动调整为100');
+                  Toast.warning('Maximum value out of range, automatically adjusted to 100');
                 }
               }}
             />
@@ -1025,11 +1025,11 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               min={1}
               max={100}
               onChange={(value) => {
-                // 如果输入值超出1-100范围，自动改为50
+                // If input value exceeds 1-100 range, automatically change to 50
                 const numValue = Number(value);
                 if (value && (numValue < 1 || numValue > 100)) {
                   formApiRef?.setValue('defaultValue', 50);
-                  Toast.warning('默认值超出范围，已自动调整为50');
+                  Toast.warning('Default value out of range, automatically adjusted to 50');
                 }
               }}
             />
@@ -1223,7 +1223,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         </Modal>
       </div>
 
-      {/* FHE 进度 Toast */}
+      {/* FHE Progress Toast */}
       <FHEProgressToast
         visible={showFHEProgress}
         currentStep={fheProgressStep}
@@ -1234,7 +1234,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         }}
       />
 
-      {/* 白名单管理 Modal */}
+      {/* Allowlist Management Modal */}
       <AllowlistModal
         channelId={channel.channelId}
         visible={showAllowlistModal}
