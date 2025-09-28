@@ -1,0 +1,84 @@
+.fhe-progress-toast {
+  position: fixed !important;
+  top: 20px !important;
+  right: 20px !important;
+  z-index: 99999 !important;
+  background: var(--semi-color-bg-1) !important;
+  border: 1px solid var(--semi-color-border) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important;
+  padding: 16px 20px !important;
+  min-width: 300px !important;
+  max-width: 400px !important;
+  backdrop-filter: blur(8px) !important;
+  animation: slideInRight 0.3s ease-out !important;
+  pointer-events: auto !important;
+}
+
+.fhe-progress-content {
+  width: 100%;
+}
+
+.fhe-progress-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.fhe-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--semi-color-fill-0);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.fhe-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--semi-color-primary), var(--semi-color-primary-light-active));
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.fhe-progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .fhe-progress-toast {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    min-width: auto;
+    max-width: none;
+  }
+}

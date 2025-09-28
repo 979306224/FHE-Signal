@@ -8,6 +8,7 @@ import { ContractService, PinataService } from '../services';
 import { fheService } from '../FHE/fheService';
 import { useFHE, FHEStatus } from '../FHE/fheContext';
 import { FHEStatusIndicator } from '../FHE/FHEStatusIndicator';
+import FHEProgressToast from './FHEProgressToast';
 import './ChannelDetailModal.less';
 
 const { Title, Text } = Typography;
@@ -51,6 +52,11 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
   const [submittingSignal, setSubmittingSignal] = useState(false);
   const [signalValue, setSignalValue] = useState<string>('');
   const [formApiRef, setFormApiRef] = useState<any>(null);
+  
+  // FHE 进度状态
+  const [showFHEProgress, setShowFHEProgress] = useState(false);
+  const [fheProgressStep, setFheProgressStep] = useState(0);
+  const [fheProgressName, setFheProgressName] = useState('');
 
   // 使用 useWriteContract hook
   const { writeContractAsync, isPending: isWritePending } = useWriteContract();
@@ -66,7 +72,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
     if (isConfirmed && receipt) {
       console.log('交易确认结果:', receipt);
       if (receipt.status === 'success') {
-        Toast.success('信号提交成功！');
+        Toast.success('🎉 信号提交成功！交易已确认');
         setShowSubmitSignal(false);
         setSelectedTopicId(null);
         setSignalValue('');
@@ -75,12 +81,19 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         loadTopics();
       } else {
         console.error('交易失败，receipt:', receipt);
-        Toast.error('交易失败，请查看控制台了解详情');
+        Toast.error('❌ 交易失败，请查看控制台了解详情');
         setPendingTxHash(null);
       }
       setSubmittingSignal(false);
     }
   }, [isConfirmed, receipt]);
+
+  // 监听交易确认状态变化
+  useEffect(() => {
+    if (pendingTxHash && isConfirming) {
+      Toast.info('⏳ 交易确认中，请稍候...');
+    }
+  }, [pendingTxHash, isConfirming]);
 
   // 检查用户权限
   useEffect(() => {
@@ -211,12 +224,19 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
 
     setSubmittingSignal(true);
     try {
-      // 使用传入的值或当前状态中的值
-      const value = values?.value || signalValue;
+      // 使用传入的值或当前状态中的值，如果都没有则使用默认值
+      let value = values?.value || signalValue;
       if (!value) {
-        Toast.error('请输入信号值');
-        setSubmittingSignal(false);
-        return;
+        // 获取当前话题的默认值
+        const topic = topics.find(t => t.topicId === selectedTopicId);
+        if (topic) {
+          value = topic.defaultValue;
+          console.log('使用默认值:', value);
+        } else {
+          Toast.error('无法获取话题信息');
+          setSubmittingSignal(false);
+          return;
+        }
       }
 
       const numericValue = Number(value);
@@ -232,6 +252,9 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         setSubmittingSignal(false);
         return;
       }
+
+      // 显示开始处理的 toast
+      Toast.info('开始验证话题信息...');
 
       // 预检查：验证话题是否存在且未过期
       try {
@@ -274,6 +297,11 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         return;
       }
 
+      // 开始 FHE 加密进度
+      setShowFHEProgress(true);
+      setFheProgressStep(1);
+      setFheProgressName('准备 FHE 加密环境...');
+
       // 获取合约地址
       const contractAddresses = ContractService.getContractAddresses();
       const contractAddress = contractAddresses.FHESubscriptionManager;
@@ -290,11 +318,18 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       if (!fheService.isReady()) {
         Toast.error('FHE 服务未就绪');
         setSubmittingSignal(false);
+        setShowFHEProgress(false);
         return;
       }
       
+      setFheProgressStep(2);
+      setFheProgressName('创建加密输入...');
+      
       const encryptedInput = fheService.createEncryptedInput(contractAddress, userAddress);
       encryptedInput.add8(numericValue);
+      
+      setFheProgressStep(3);
+      setFheProgressName('执行 FHE 加密计算...');
       
       const encryptedResult = await encryptedInput.encrypt();
       const encryptedValueHandle = encryptedResult.handles[0];
@@ -304,6 +339,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       if (!encryptedValueHandle || !proof) {
         Toast.error('FHE 加密失败：缺少加密数据或证明');
         setSubmittingSignal(false);
+        setShowFHEProgress(false);
         return;
       }
 
@@ -311,8 +347,12 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       if (encryptedValueHandle.length !== 32) {
         Toast.error(`FHE 加密失败：encryptedValue 长度应为 32 字节，实际为 ${encryptedValueHandle.length} 字节`);
         setSubmittingSignal(false);
+        setShowFHEProgress(false);
         return;
       }
+
+      setFheProgressStep(4);
+      setFheProgressName('验证加密结果...');
 
       // 使用相同的转换函数
       const uint8ArrayToHex = (array: Uint8Array): `0x${string}` => {
@@ -325,6 +365,9 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         encryptedValueHex: uint8ArrayToHex(encryptedValueHandle),
         proofHex: uint8ArrayToHex(proof)
       });
+      
+      setFheProgressStep(5);
+      setFheProgressName('准备提交交易...');
       
       // 获取合约调用配置
       const contractConfig = ContractService.getSubmitSignalConfig(
@@ -339,7 +382,15 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       console.log('交易哈希:', hash);
       setPendingTxHash(hash);
       
-      Toast.info('交易已提交，等待确认...');
+      // 完成 FHE 进度
+      setFheProgressStep(5);
+      setFheProgressName('FHE 加密完成！');
+      
+      // 延迟关闭进度条
+      setTimeout(() => {
+        setShowFHEProgress(false);
+        Toast.info('交易已提交，等待确认...');
+      }, 1000);
     } catch (error) {
       console.error('提交信号失败:', error);
       
@@ -364,6 +415,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       
       Toast.error(`提交信号失败: ${errorMessage}`);
       setSubmittingSignal(false);
+      setShowFHEProgress(false);
     }
   }, [userAddress, selectedTopicId, submittingSignal, signalValue, fheReady, isWritePending, writeContractAsync, loadTopics]);
 
@@ -720,17 +772,23 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               </Button>
             </div>
           </Form>
+         <div style={{
+          height: '24px'
+         }}></div>
+          
         </Modal>
 
         {/* 提交信号弹窗 */}
         <Modal
           title="提交信号"
           visible={showSubmitSignal}
-          onCancel={() => {
+          onCancel={submittingSignal || isWritePending || isConfirming ? undefined : () => {
             setShowSubmitSignal(false);
             setSelectedTopicId(null);
             setSignalValue('');
           }}
+          closeOnEsc={!(submittingSignal || isWritePending || isConfirming)}
+          maskClosable={!(submittingSignal || isWritePending || isConfirming)}
           footer={null}
           width={600}
         >
@@ -859,18 +917,21 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
             </div>
             
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
-              <Button onClick={() => {
-                setShowSubmitSignal(false);
-                setSelectedTopicId(null);
-                setSignalValue('');
-              }}>
+              <Button 
+                onClick={() => {
+                  setShowSubmitSignal(false);
+                  setSelectedTopicId(null);
+                  setSignalValue('');
+                }}
+                disabled={submittingSignal || isWritePending || isConfirming}
+              >
                 取消
               </Button>
               <Button 
                 htmlType="submit" 
                 type="primary" 
                 loading={submittingSignal || isWritePending || isConfirming}
-                disabled={!signalValue || !fheReady || submittingSignal || isWritePending}
+                disabled={!fheReady || submittingSignal || isWritePending}
               >
                 {!fheReady ? 'FHE未就绪' : 
                  isWritePending ? '提交中...' : 
@@ -885,6 +946,17 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         }}></div>
         </Modal>
       </div>
+      
+      {/* FHE 进度 Toast */}
+      <FHEProgressToast
+        visible={showFHEProgress}
+        currentStep={fheProgressStep}
+        totalSteps={5}
+        stepName={fheProgressName}
+        onComplete={() => {
+          setShowFHEProgress(false);
+        }}
+      />
     </Modal>
   );
 }
