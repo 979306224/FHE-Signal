@@ -127,6 +127,15 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       FHEStatus: FHEStatus
     });
   }, [fheStatus, fheReady]);
+
+  // Local channel state to ensure we always have the latest data
+  const [currentChannel, setCurrentChannel] = useState<Channel>(channel);
+
+  // Sync props channel to local state when it changes
+  useEffect(() => {
+    setCurrentChannel(channel);
+  }, [channel]);
+
   const [topics, setTopics] = useState<TopicWithIPFS[]>([]);
   const [loadingTopics, setLoadingTopics] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
@@ -202,22 +211,22 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
     const checkPermissions = async () => {
       try {
         // Check if is channel owner
-        const ownerStatus = channel.owner.toLowerCase() === userAddress.toLowerCase();
+        const ownerStatus = currentChannel.owner.toLowerCase() === userAddress.toLowerCase();
         setIsOwner(ownerStatus);
 
-        console.log('channel', channel);
+        console.log('currentChannel', currentChannel);
 
         // Check if in allowlist
         if (!ownerStatus) {
-          const allowlistStatus = await ContractService.isInAllowlist(channel.channelId, userAddress);
+          const allowlistStatus = await ContractService.isInAllowlist(currentChannel.channelId, userAddress);
           setIsInAllowlist(allowlistStatus);
         } else {
           setIsInAllowlist(true); // Owner is in allowlist by default
         }
 
         // Check if has valid subscription
-        if (channel.nftContract) {
-          const subscriptionResult = await checkUserSubscription(channel.nftContract, userAddress, channel.channelId);
+        if (currentChannel.nftContract) {
+          const subscriptionResult = await checkUserSubscription(currentChannel.nftContract, userAddress, currentChannel.channelId);
           setHasValidSubscription(subscriptionResult.hasValidSubscription);
           setSubscriptionInfo(subscriptionResult.subscriptionInfo || null);
           console.log('Subscription check result:', subscriptionResult);
@@ -233,7 +242,21 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
     if (visible) {
       checkPermissions();
     }
-  }, [channel, userAddress, isConnected, visible]);
+  }, [currentChannel, userAddress, isConnected, visible]);
+
+  // Refresh channel data from contract
+  const refreshChannel = useCallback(async () => {
+    try {
+      console.log('Refreshing channel data...');
+      const latestChannel = await ContractService.getChannel(currentChannel.channelId);
+      setCurrentChannel(latestChannel);
+      console.log('Channel data refreshed:', latestChannel);
+      return latestChannel;
+    } catch (error) {
+      console.error('Failed to refresh channel data:', error);
+      throw error;
+    }
+  }, [currentChannel.channelId]);
 
   // Load all topics for the channel
   const loadTopics = useCallback(async () => {
@@ -241,9 +264,9 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
 
     setLoadingTopics(true);
     try {
-      // Get topic info based on channel.topicIds
-      const topicIds = channel.topicIds || [];
-      console.log('channel.topicIds', topicIds);
+      // Get topic info based on currentChannel.topicIds
+      const topicIds = currentChannel.topicIds || [];
+      console.log('currentChannel.topicIds', topicIds);
 
       const topicData = await ContractService.getTopicsByIds(topicIds);
       console.log('topicData', topicData);
@@ -296,7 +319,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
     } finally {
       setLoadingTopics(false);
     }
-  }, [channel.channelId, channel.topicIds, visible, userAddress, isConnected]);
+  }, [currentChannel.channelId, currentChannel.topicIds, visible, userAddress, isConnected]);
 
   useEffect(() => {
     if (visible) {
@@ -320,7 +343,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       // Create topic
       const endDate = BigInt(Math.floor(new Date(values.endDate).getTime() / 1000));
       const result = await ContractService.createTopic(
-        channel.channelId,
+        currentChannel.channelId,
         ipfsResult.ipfsUri,
         endDate,
         values.minValue,
@@ -331,7 +354,10 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
       if (result.success) {
         Toast.success('Topic created successfully!');
         setShowCreateTopic(false);
-        loadTopics(); // Reload topics
+        // First refresh channel data to get updated topicIds
+        await refreshChannel();
+        // Then load topics with the updated channel data
+        loadTopics();
       } else {
         Toast.error(`Failed to create topic: ${result.error}`);
       }
@@ -341,7 +367,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
     } finally {
       setCreatingTopic(false);
     }
-  }, [userAddress, channel.channelId, creatingTopic, loadTopics]);
+  }, [userAddress, currentChannel.channelId, creatingTopic, refreshChannel, loadTopics]);
 
   const handleSubmitSignal = useCallback(async (values?: any) => {
     if (!userAddress || !selectedTopicId || submittingSignal || isWritePending) return;
@@ -409,7 +435,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
 
         // Check if in allowlist
         const isInAllowlist = await ContractService.isInAllowlist(topic.channelId, userAddress);
-        if (!isInAllowlist && channel.owner !== userAddress) {
+        if (!isInAllowlist && currentChannel.owner !== userAddress) {
           Toast.error('You are not in the allowlist, cannot submit signal');
           setSubmittingSignal(false);
           return;
@@ -547,13 +573,16 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
   const handleRefresh = useCallback(async () => {
     try {
       Toast.info('🔄 Refreshing data...');
+      // First refresh channel data to get latest state
+      await refreshChannel();
+      // Then reload topics
       await loadTopics();
       Toast.success('✅ Data refresh completed');
     } catch (error) {
       console.error('Failed to refresh data:', error);
       Toast.error('❌ Failed to refresh data');
     }
-  }, [loadTopics]);
+  }, [refreshChannel, loadTopics]);
 
   // Click topic to submit signal
   const handleTopicClick = useCallback((topic: TopicWithIPFS) => {
@@ -609,7 +638,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
 
         if (!isOwner) {
           // For non-owners, find a valid NFT token for this channel
-          if (!channel.nftContract) {
+          if (!currentChannel.nftContract) {
             Toast.error('No NFT contract found for this channel');
             return;
           }
@@ -617,7 +646,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
           try {
             // Get user's valid subscription NFTs
             const validTokenIds = await ContractService.getUserValidSubscriptions(
-              channel.nftContract,
+              currentChannel.nftContract,
               userAddress
             );
             console.log('User valid subscription tokenIds:', validTokenIds);
@@ -628,7 +657,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               try {
                 // Get subscription info to verify it belongs to this channel
                 const subscription = await readContract(wagmiConfig, {
-                  address: channel.nftContract as Address,
+                  address: currentChannel.nftContract as Address,
                   abi: parseAbi([
                     'function getSubscription(uint256 tokenId) view returns ((uint256 channelId, uint256 expiresAt, uint8 tier, address subscriber, uint256 mintedAt) subscription)'
                   ]),
@@ -636,7 +665,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                   args: [tid]
                 }) as unknown as SubscriptionNFT;
 
-                if (subscription.channelId === channel.channelId) {
+                if (subscription.channelId === currentChannel.channelId) {
                   validTokenId = tid;
                   console.log('Found valid tokenId for channel:', tid.toString());
                   break;
@@ -662,7 +691,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         // Request access to the topic
         try {
           const result = await ContractService.accessTopicResult(
-            channel.channelId,
+            currentChannel.channelId,
             topicId,
             tokenId
           );
@@ -724,27 +753,27 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
         return newSet;
       });
     }
-  }, [userAddress, fheReady, walletClient, isOwner, hasValidSubscription, channel]);
+  }, [userAddress, fheReady, walletClient, isOwner, hasValidSubscription, currentChannel]);
 
   const tierInfo = useMemo(() => {
-    if (!channel.tiers || channel.tiers.length === 0) {
+    if (!currentChannel.tiers || currentChannel.tiers.length === 0) {
       return { minPrice: '-', maxPrice: '-', tierCount: 0 };
     }
 
-    const prices = channel.tiers.map(tier => tier.price);
+    const prices = currentChannel.tiers.map(tier => tier.price);
     const minPrice = prices.reduce((min, price) => price < min ? price : min);
     const maxPrice = prices.reduce((max, price) => price > max ? price : max);
 
     return {
       minPrice: ContractService.weiToEther(minPrice),
       maxPrice: ContractService.weiToEther(maxPrice),
-      tierCount: channel.tiers.length
+      tierCount: currentChannel.tiers.length
     };
-  }, [channel.tiers]);
+  }, [currentChannel.tiers]);
 
   const totalSubscribers = useMemo(() => {
-    return channel.tiers?.reduce((total, tier) => total + tier.subscribers, 0n) || 0n;
-  }, [channel.tiers]);
+    return currentChannel.tiers?.reduce((total, tier) => total + tier.subscribers, 0n) || 0n;
+  }, [currentChannel.tiers]);
 
   return (
     <Modal
@@ -779,7 +808,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <Title heading={4} style={{ margin: 0 }}>
-                    {ipfsData?.name || `Channel ${channel.channelId.toString()}`}
+                    {ipfsData?.name || `Channel ${currentChannel.channelId.toString()}`}
                   </Title>
                   <Button
                     type="tertiary"
@@ -820,7 +849,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                   )}
 
                   <Tag color="purple">
-                    ID: {channel.channelId.toString()}
+                    ID: {currentChannel.channelId.toString()}
                   </Tag>
 
                   {/* User status display */}
@@ -849,13 +878,13 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
                 <div style={{ marginTop: 12 }}>
                   <Text type="tertiary" size="small">
                     <IconCalendar style={{ marginRight: 4 }} />
-                    Created at {ContractService.formatTimestamp(channel.createdAt)}
+                    Created at {ContractService.formatTimestamp(currentChannel.createdAt)}
                   </Text>
                 </div>
               </div>
             </div>
             <div>
-              <ChannelSubscribeModal channelId={channel.channelId} />
+              <ChannelSubscribeModal channelId={currentChannel.channelId} />
             </div>
           </div>
 
@@ -1348,7 +1377,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
 
       {/* Allowlist Management Modal */}
       <AllowlistModal
-        channelId={channel.channelId}
+        channelId={currentChannel.channelId}
         visible={showAllowlistModal}
         onClose={() => setShowAllowlistModal(false)}
       />
