@@ -21,7 +21,7 @@ const { Title, Text } = Typography;
 // 档位数字到文字的映射
 const TIER_NAMES: Record<number, string> = {
   0: '1天',
-  1: '1个月', 
+  1: '1个月',
   2: '3个月',
   3: '6个月',
   4: '1年'
@@ -141,7 +141,7 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
   const [submittingSignal, setSubmittingSignal] = useState(false);
   const [signalValue, setSignalValue] = useState<string>('');
   const [formApiRef, setFormApiRef] = useState<any>(null);
-  
+
   // 解密相关状态
   const [decryptedResults, setDecryptedResults] = useState<Map<bigint, any>>(new Map());
   const [decryptingTopics, setDecryptingTopics] = useState<Set<bigint>>(new Set());
@@ -569,10 +569,10 @@ export default function ChannelDetailModal({ visible, onClose, channel, ipfsData
 
     try {
       setDecryptingTopics(prev => new Set(prev).add(topicId));
-      
+
       // 获取话题信息
       const topic = await ContractService.getTopic(topicId);
-console.log(topic,'topic')
+      console.log(topic, 'topic')
       // 检查是否有提交的信号
       if (topic.submissionCount === 0n) {
         Toast.warning('该话题暂无提交的信号');
@@ -582,12 +582,12 @@ console.log(topic,'topic')
       // 使用FHE解密
       const contractAddresses = ContractService.getContractAddresses();
       const contractAddress = contractAddresses.FHESubscriptionManager;
-      
+
       // 从合约获取真实的加密句柄 - 只解密平均值
       const handles = [
         topic.average             // 平均值句柄 (bytes32)
       ];
-      
+
       // 使用FHEService进行解密
       const results = await fheService.decryptMultipleValuesWithWalletClient(
         handles,
@@ -679,7 +679,7 @@ console.log(topic,'topic')
                     icon={<IconRefresh />}
                     onClick={handleRefresh}
                     loading={loadingTopics}
-                    style={{ 
+                    style={{
                       padding: '4px 8px',
                       minWidth: 'auto',
                       height: 'auto'
@@ -724,31 +724,18 @@ console.log(topic,'topic')
                           👑 频道拥有者
                         </Tag>
                       )}
-                      
+
                       {/* 订阅状态 */}
                       <Tag color={hasValidSubscription ? "green" : "grey"}>
-                        {hasValidSubscription ? 
-                          `✓ 已订阅${subscriptionInfo ? ` (${getTierName(Number(subscriptionInfo.tier))})` : ''}` : 
+                        {hasValidSubscription ?
+                          `✓ 已订阅${subscriptionInfo ? ` (${getTierName(Number(subscriptionInfo.tier))})` : ''}` :
                           "未订阅"
                         }
                       </Tag>
                     </>
                   )}
 
-                  {/* 拥有者管理按钮 */}
-                  {isOwner && (
-                    <div style={{ marginTop: 12 }}>
-                      <Button
-                        type="tertiary"
-                        size="small"
-                        icon={<IconUser />}
-                        onClick={() => setShowAllowlistModal(true)}
-                        style={{ marginRight: 8 }}
-                      >
-                        管理白名单
-                      </Button>
-                    </div>
-                  )}
+
                 </Space>
 
                 <div style={{ marginTop: 12 }}>
@@ -775,8 +762,19 @@ console.log(topic,'topic')
               >
                 创建话题
               </Button>
+
+              <Button
+                type="tertiary"
+                size="small"
+                icon={<IconUser />}
+                onClick={() => setShowAllowlistModal(true)}
+                style={{ marginRight: 8 }}
+              >
+                管理白名单
+              </Button>
             </Space>
           )}
+
         </Card>
 
         {/* 话题列表 */}
@@ -860,10 +858,10 @@ console.log(topic,'topic')
 
                       {/* 加密结果显示区域 */}
                       {topic.submissionCount > 0n && (
-                        <div style={{ 
-                          marginTop: 12, 
-                          padding: 12, 
-                          backgroundColor: 'var(--semi-color-fill-0)', 
+                        <div style={{
+                          marginTop: 12,
+                          padding: 12,
+                          backgroundColor: 'var(--semi-color-fill-0)',
                           borderRadius: 6,
                           border: '1px solid var(--semi-color-border)'
                         }}>
@@ -884,7 +882,7 @@ console.log(topic,'topic')
                               </Button>
                             )}
                           </div>
-                          
+
                           {decryptedResults.has(topic.topicId) ? (
                             <div>
                               <Text size="small" type="secondary">

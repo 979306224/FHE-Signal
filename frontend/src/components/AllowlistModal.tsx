@@ -36,9 +36,14 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
     const [addingUsers, setAddingUsers] = useState(false);
     const [addStep, setAddStep] = useState(0); // 0: 输入, 1: 预览, 2: 确认
 
+    // 调试：监听 showAddForm 状态变化
+    useEffect(() => {
+        console.log('showAddForm 状态变化:', showAddForm);
+    }, [showAddForm]);
+
     // 表格数据结构
     const [tableData, setTableData] = useState<UserEntry[]>([
-        { id: '1', address: '', weight: '100' }
+        { id: '1', address: '', weight: '1' }
     ]);
     const [previewData, setPreviewData] = useState<{users: string[], weights: bigint[]}>();
 
@@ -236,6 +241,15 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
         setTableData([{ id: '1', address: '', weight: '100' }]);
     }, []);
 
+    // 处理主弹窗关闭
+    const handleMainModalClose = useCallback(() => {
+        // 重置添加表单状态
+        if (showAddForm) {
+            resetAddForm();
+        }
+        onClose();
+    }, [showAddForm, resetAddForm, onClose]);
+
     // 处理移除用户
     const handleRemoveUsers = useCallback(async (users: string[]) => {
         if (!isConnected || !userAddress) {
@@ -285,7 +299,7 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
             key: 'user',
             render: (address: string) => (
                 <Text code style={{ fontSize: '12px' }}>
-                    {address.slice(0, 6)}...{address.slice(-4)}
+                    {address}
                 </Text>
             ),
         },
@@ -329,108 +343,22 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
     };
 
     return (
-        <Modal
-            title="白名单管理"
-            visible={visible}
-            onCancel={onClose}
-            closeOnEsc={true}
-            width={900}
-            style={{ maxHeight: '80vh' }}
-            footer={
-                <Space>
-                    <Button onClick={onClose}>
-                        关闭
-                    </Button>
-                    <Button
-                        type="primary"
-                        icon={<IconPlus />}
-                        onClick={() => setShowAddForm(true)}
-                        disabled={!isConnected}
-                    >
-                        添加用户
-                    </Button>
-                </Space>
-            }
-        >
-            <div className="allowlist-modal">
-                {loading && (
-                    <div className="loading-container">
-                        <Spin size="large" />
-                        <Text style={{ marginTop: '16px' }}>加载白名单数据中...</Text>
+        <>
+            <Modal
+                title={
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <IconUser />
+                        <span>添加用户到白名单</span>
                     </div>
-                )}
-
-                {error && (
-                    <div className="error-container">
-                        <Text type="danger">加载失败: {error}</Text>
-                        <Button
-                            type="tertiary"
-                            size="small"
-                            icon={<IconRefresh />}
-                            onClick={handleRefresh}
-                            style={{ marginLeft: '12px' }}
-                        >
-                            重试
-                        </Button>
-                    </div>
-                )}
-
-                {!loading && !error && (
-                    <div className="allowlist-content">
-                        <div className="allowlist-header">
-                            <div className="header-info">
-                                <Title heading={5} style={{ margin: 0 }}>
-                                    频道白名单
-                                </Title>
-                                <Text type="secondary">
-                                    频道ID: {channelId.toString()} | 总用户数: {totalCount}
-                                </Text>
-                            </div>
-                            <Button
-                                type="tertiary"
-                                icon={<IconRefresh />}
-                                onClick={handleRefresh}
-                                loading={loading}
-                            >
-                                刷新
-                            </Button>
-                        </div>
-
-                        <Divider margin="16px" />
-
-                        {allowlist.length > 0 ? (
-                            <Table
-                                columns={columns}
-                                dataSource={allowlist}
-                                pagination={pagination}
-                                rowKey="user"
-                                size="small"
-                            />
-                        ) : (
-                            <div className="empty-container">
-                                <Text type="secondary">暂无白名单用户</Text>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* 添加用户表单 */}
-                {showAddForm && (
-                    <Modal
-                        title={
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <IconUser />
-                                <span>添加用户到白名单</span>
-                            </div>
-                        }
-                        visible={showAddForm}
-                        onCancel={resetAddForm}
-                        footer={null}
-                        width={900}
-                        style={{ maxHeight: '80vh' }}
-                        maskClosable={!addingUsers}
-                        closeOnEsc={!addingUsers}
-                    >
+                }
+                visible={showAddForm}
+                onCancel={resetAddForm}
+                footer={null}
+                width={900}
+                style={{ maxHeight: '80vh', zIndex: 1100 }}
+                maskClosable={!addingUsers}
+                closeOnEsc={!addingUsers}
+            >
                         <div style={{ marginBottom: 20 }}>
                             <Steps current={addStep} size="small">
                                 <Steps.Step title="输入信息" icon={<IconEdit />} />
@@ -602,7 +530,7 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                                                     dataIndex: 'user',
                                                     render: (address: string) => (
                                                         <Text code style={{ fontSize: '12px' }}>
-                                                            {address.slice(0, 8)}...{address.slice(-6)}
+                                                            {address}
                                                         </Text>
                                                     ),
                                                 },
@@ -676,9 +604,105 @@ export default function AllowlistModal({ channelId, visible, onClose }: Allowlis
                                 </Card>
                             </div>
                         )}
-                    </Modal>
+                        <div style={{
+                            height:'24px'
+                        }}>
+
+                        </div>
+                </Modal>
+
+            <Modal
+            title="白名单管理"
+            visible={visible}
+            onCancel={handleMainModalClose}
+            closeOnEsc={true}
+            width={900}
+            style={{ maxHeight: '80vh' }}
+            footer={
+                <Space>
+                    <Button onClick={handleMainModalClose}>
+                        关闭
+                    </Button>
+                    <Button
+                        type="primary"
+                        icon={<IconPlus />}
+                        onClick={() => {
+                            console.log('点击添加用户按钮');
+                            setShowAddForm(true);
+                        }}
+                        disabled={!isConnected}
+                    >
+                        添加用户
+                    </Button>
+                </Space>
+            }
+        >
+            <div className="allowlist-modal">
+                {loading && (
+                    <div className="loading-container">
+                        <Spin size="large" />
+                        <Text style={{ marginTop: '16px' }}>加载白名单数据中...</Text>
+                    </div>
                 )}
+
+                {error && (
+                    <div className="error-container">
+                        <Text type="danger">加载失败: {error}</Text>
+                        <Button
+                            type="tertiary"
+                            size="small"
+                            icon={<IconRefresh />}
+                            onClick={handleRefresh}
+                            style={{ marginLeft: '12px' }}
+                        >
+                            重试
+                        </Button>
+                    </div>
+                )}
+
+                {!loading && !error && (
+                    <div className="allowlist-content">
+                        <div className="allowlist-header">
+                            <div className="header-info">
+                                <Title heading={5} style={{ margin: 0 }}>
+                                    频道白名单
+                                </Title>
+                                <Text type="secondary">
+                                    频道ID: {channelId.toString()} | 总用户数: {totalCount}
+                                </Text>
+                            </div>
+                            <Button
+                                type="tertiary"
+                                icon={<IconRefresh />}
+                                onClick={handleRefresh}
+                                loading={loading}
+                            >
+                                刷新
+                            </Button>
+                        </div>
+
+                        <Divider margin="16px" />
+
+                        {allowlist.length > 0 ? (
+                            <Table
+                                columns={columns}
+                                dataSource={allowlist}
+                                pagination={pagination}
+                                rowKey="user"
+                                size="small"
+                            />
+                        ) : (
+                            <div className="empty-container">
+                                <Text type="secondary">暂无白名单用户</Text>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+
             </div>
         </Modal>
+
+        </>
     );
 }
