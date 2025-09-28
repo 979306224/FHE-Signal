@@ -1,0 +1,275 @@
+.home-container {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #000000;
+
+  &::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(
+      circle at 20% 80%,
+      rgba(255, 210, 8, 0.08) 0%,
+      transparent 50%
+    ), radial-gradient(
+      circle at 80% 20%,
+      rgba(255, 210, 8, 0.06) 0%,
+      transparent 50%
+    ), radial-gradient(
+      circle at 40% 40%,
+      rgba(255, 210, 8, 0.04) 0%,
+      transparent 50%
+    );
+    z-index: 0;
+  }
+
+  .animated-orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.4;
+    animation: float 20s infinite ease-in-out;
+    z-index: 0;
+
+    &.orb-1 {
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, #FFD208 0%, rgba(255, 210, 8, 0.3) 50%, transparent 70%);
+      top: -100px;
+      left: -100px;
+      animation-delay: 0s;
+    }
+
+    &.orb-2 {
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(255, 210, 8, 0.8) 0%, rgba(255, 210, 8, 0.2) 50%, transparent 70%);
+      bottom: -50px;
+      right: -50px;
+      animation-delay: 5s;
+      animation-duration: 25s;
+    }
+
+    &.orb-3 {
+      width: 350px;
+      height: 350px;
+      background: radial-gradient(circle, rgba(255, 210, 8, 0.6) 0%, rgba(255, 210, 8, 0.1) 50%, transparent 70%);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      animation-delay: 10s;
+      animation-duration: 30s;
+    }
+
+    &.orb-4 {
+      width: 250px;
+      height: 250px;
+      background: radial-gradient(circle, rgba(255, 210, 8, 0.5) 0%, rgba(255, 210, 8, 0.15) 50%, transparent 70%);
+      bottom: 20%;
+      left: 10%;
+      animation-delay: 15s;
+      animation-duration: 22s;
+    }
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+    }
+    25% {
+      transform: translate(30px, -30px) scale(1.05);
+    }
+    50% {
+      transform: translate(-20px, 20px) scale(0.95);
+    }
+    75% {
+      transform: translate(-30px, -10px) scale(1.02);
+    }
+  }
+
+  .content-wrapper {
+    position: relative;
+    z-index: 1;
+    padding: 40px 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    pointer-events: auto;
+  }
+
+  .hero-section {
+    text-align: center;
+    margin-bottom: 60px;
+    padding: 40px;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 210, 8, 0.1);
+    box-shadow: 0 8px 32px rgba(255, 210, 8, 0.05);
+
+    .hero-title {
+      font-size: 48px;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, #FFD208 0%, #FFF59D 50%, #FFD208 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 40px rgba(255, 210, 8, 0.3);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .hero-subtitle {
+      font-weight: normal;
+      color: rgba(255, 255, 255, 0.85);
+      margin-bottom: 30px;
+      font-size: 24px;
+    }
+
+    .hero-description {
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.7);
+      max-width: 700px;
+      margin: 0 auto 40px;
+      line-height: 1.6;
+    }
+
+    .hero-button {
+      padding: 14px 48px;
+      font-size: 16px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #FFD208 0%, #FFA000 100%);
+      border: none;
+      border-radius: 50px;
+      color: #000000;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 20px rgba(255, 210, 8, 0.3);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 30px rgba(255, 210, 8, 0.5);
+        background: linear-gradient(135deg, #FFA000 0%, #FFD208 100%);
+      }
+    }
+  }
+
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    margin-bottom: 60px;
+
+    .feature-card {
+      padding: 30px;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.02);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 20px;
+      border: 1px solid rgba(255, 210, 8, 0.08);
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+
+      &:hover {
+        transform: translateY(-5px);
+        background: rgba(255, 210, 8, 0.03);
+        border: 1px solid rgba(255, 210, 8, 0.15);
+        box-shadow: 0 12px 40px rgba(255, 210, 8, 0.1);
+      }
+
+      .feature-icon {
+        margin-bottom: 20px;
+        display: inline-block;
+        padding: 15px;
+        background: rgba(255, 210, 8, 0.1);
+        border-radius: 50%;
+      }
+
+      .feature-title {
+        color: #FFD208;
+        margin-bottom: 15px;
+        font-size: 20px;
+      }
+
+      .feature-description {
+        color: rgba(255, 255, 255, 0.7);
+        line-height: 1.6;
+      }
+    }
+  }
+
+  .workflow-section {
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 40px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 210, 8, 0.08);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+
+    .workflow-title {
+      margin-bottom: 30px;
+      color: #FFD208;
+      font-size: 32px;
+      text-align: center;
+    }
+
+    .workflow-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 30px;
+
+      .workflow-step {
+        padding: 20px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 210, 8, 0.06);
+        transition: all 0.3s ease;
+
+        &:hover {
+          background: rgba(255, 210, 8, 0.02);
+          border: 1px solid rgba(255, 210, 8, 0.12);
+          transform: translateY(-3px);
+        }
+
+        .step-title {
+          color: #FFD208;
+          margin-bottom: 10px;
+          font-size: 18px;
+          font-weight: 600;
+        }
+
+        .step-description {
+          color: rgba(255, 255, 255, 0.65);
+          line-height: 1.5;
+          font-size: 14px;
+        }
+      }
+    }
+  }
+
+  @media (max-width: 768px) {
+    .hero-section {
+      .hero-title {
+        font-size: 36px;
+      }
+
+      .hero-subtitle {
+        font-size: 20px;
+      }
+    }
+
+    .workflow-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+}

@@ -8,7 +8,7 @@ export default defineConfig({
 
 
     semi({
-      theme: "@semi-bot/semi-theme-zamatest",
+      theme: "@semi-bot/semi-theme-zamadark",
       // options: {
       // ... 👆
       //},

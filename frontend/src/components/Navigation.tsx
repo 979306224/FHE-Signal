@@ -31,6 +31,7 @@ function Navigation() {
 
   return (
     <Nav
+      style={{ position: 'relative', zIndex: 1000 }}
       mode="horizontal"
       selectedKeys={[location.pathname]}
       items={navItems}
