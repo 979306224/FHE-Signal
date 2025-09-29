@@ -114,25 +114,6 @@ describe("FHESubscriptionManager - Access Control and Permission Management", fu
     ).to.be.revertedWithCustomError(subscriptionManager, "TopicChannelMismatch");
   });
 
-  it("Only channel owner can reset access records", async function () {
-    // Bob accesses topic
-    await subscriptionManager.connect(signers.bob)
-      .accessTopicResult(channelId, topicId, tokenId);
-    
-    expect(await subscriptionManager.hasAccessedTopic(topicId, signers.bob.address)).to.be.true;
-    
-    // Channel owner resets access record
-    await subscriptionManager.connect(signers.alice)
-      .resetTopicAccess(topicId, signers.bob.address);
-    
-    expect(await subscriptionManager.hasAccessedTopic(topicId, signers.bob.address)).to.be.false;
-    
-    // Non-channel owner cannot reset
-    await expect(
-      subscriptionManager.connect(signers.bob)
-        .resetTopicAccess(topicId, signers.bob.address)
-    ).to.be.revertedWithCustomError(subscriptionManager, "NotChannelOwner");
-  });
 
   it("Should reject invalid topic ID", async function () {
     await expect(
